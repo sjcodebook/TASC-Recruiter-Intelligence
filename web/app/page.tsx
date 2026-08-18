@@ -303,7 +303,7 @@ export default function Home() {
         overrides: overrideSignature(resolvedOverrides)
       });
       setActiveCandidateId(nextResult.candidates[0]?.candidateId ?? null);
-      setSelectedCandidateIds(nextResult.candidates[0] ? [nextResult.candidates[0].candidateId] : []);
+      setSelectedCandidateIds([]);
     } catch (matchError) {
       setError(formatError(matchError));
     } finally {
