@@ -1,4 +1,4 @@
-# TASC Match Intelligence
+# TASC Recruiter intelligence 
 
 An evidence-first candidate matching workspace for in-house recruiters. A recruiter selects an open role, adds optional natural-language guidance, reviews a ranked and deduplicated shortlist, inspects the evidence behind each score, and approves candidates into a Markdown brief for the hiring manager.
 
@@ -13,7 +13,7 @@ Recruiters rarely need another resume search box. They need a defensible answer 
 3. What is missing or unreliable?
 4. What should I ask next?
 
-TASC Match Intelligence turns a role and optional recruiter guidance into a shortlist that answers those questions. It also keeps the recruiter in control: hard filters are applied only when guidance uses explicit constraint language, candidates must be selected before approval, and the final artifact is editable Markdown rather than an automated hiring decision.
+TASC Recruiter intelligence  turns a role and optional recruiter guidance into a shortlist that answers those questions. It also keeps the recruiter in control: hard filters are applied only when guidance uses explicit constraint language, candidates must be selected before approval, and the final artifact is editable Markdown rather than an automated hiring decision.
 
 ### Key product choices
 
