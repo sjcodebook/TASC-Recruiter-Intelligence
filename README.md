@@ -132,6 +132,5 @@ In a staged rollout, I would measure shortlist acceptance, time to first qualifi
 - [Prompt documentation](docs/PROMPTS.md)
 - [Example input and output](docs/EXAMPLE_INPUT_OUTPUT.md)
 - [Detailed matching logic](docs/MATCHING_SYSTEM.md)
-- [Five-minute Loom outline](docs/LOOM_SCRIPT.md)
 
 Current verification: 41 API tests pass, both production builds pass, and the core flow has been exercised in a real browser against Postgres, pgvector, and OpenAI.
