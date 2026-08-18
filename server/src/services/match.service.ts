@@ -5,7 +5,7 @@ import { MatchRepository } from "../repositories/match.repository.js";
 import { RoleRepository } from "../repositories/role.repository.js";
 import { OpenAIGateway } from "../infrastructure/openai/openai.gateway.js";
 import { GuidanceService } from "./guidance.service.js";
-import { ScoringService } from "./scoring.service.js";
+import { effectiveMinimumExperience, ScoringService } from "./scoring.service.js";
 import type { GuidanceOverrides, MatchResponse, RankedCandidate } from "../domain/types.js";
 import { AppError } from "../http/app-error.js";
 
@@ -71,6 +71,12 @@ export class MatchService {
       });
     const eligibleCount = ranked.filter((candidate) => candidate.eligible).length;
     const qualifiedCount = ranked.filter((candidate) => candidate.eligible && candidate.qualified).length;
+    const belowMinimumExperienceCount = ranked.filter(
+      (candidate) => candidate.eligibleWithoutExperience
+        && candidate.meetsRoleRelevanceThreshold
+        && candidate.meetsMinimumExperience === false
+    ).length;
+    const minimumExperienceYears = effectiveMinimumExperience(role, guidance);
     let shortlist = selectEligibleShortlist(ranked, input.limit);
 
     if (shortlist.length > 0) {
@@ -127,6 +133,8 @@ export class MatchService {
       requestedLimit: input.limit,
       eligibleCount,
       qualifiedCount,
+      belowMinimumExperienceCount,
+      minimumExperienceYears,
       appliedConstraints
     };
   }

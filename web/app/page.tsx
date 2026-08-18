@@ -743,14 +743,19 @@ export default function Home() {
                   {result.candidates.length < result.requestedLimit && (
                     <div className="constraint-summary" role="status">
                       <strong>
-                        {result.candidates.length} candidates met the mandatory
-                        and role-fit thresholds.
+                        {result.candidates.length} {result.candidates.length === 1
+                          ? "candidate met"
+                          : "candidates met"} the mandatory, role-fit, and
+                        minimum-experience thresholds.
                       </strong>
                       <span>
-                        {[
-                          ...result.appliedConstraints,
-                          "Minimum role relevance",
-                        ].join(" · ")}
+                        {result.belowMinimumExperienceCount > 0
+                          ? `${result.belowMinimumExperienceCount} otherwise relevant ${result.belowMinimumExperienceCount === 1 ? "profile was" : "profiles were"} excluded because the stated experience was below the ${result.minimumExperienceYears}-year minimum.`
+                          : [
+                              ...result.appliedConstraints,
+                              "Minimum role relevance",
+                              `Minimum experience: ${result.minimumExperienceYears} years`,
+                            ].join(" · ")}
                       </span>
                     </div>
                   )}
@@ -758,8 +763,9 @@ export default function Home() {
                     <div className="no-qualified-results">
                       <strong>No defensible shortlist for this rubric</strong>
                       <span>
-                        Relax a required criterion or review the source
-                        profiles, then run the match again.
+                        {result.belowMinimumExperienceCount > 0
+                          ? `${result.belowMinimumExperienceCount} otherwise relevant ${result.belowMinimumExperienceCount === 1 ? "profile falls" : "profiles fall"} below the ${result.minimumExperienceYears}-year minimum.`
+                          : "Relax a required criterion or review the source profiles, then run the match again."}
                       </span>
                     </div>
                   )}

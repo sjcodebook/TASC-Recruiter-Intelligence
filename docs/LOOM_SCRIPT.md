@@ -29,7 +29,7 @@ Select one or two candidates. Point out that nothing is selected automatically. 
 
 Show the README architecture diagram and score table.
 
-“OpenAI embeds the role query, and pgvector retrieves relevant profiles. Deterministic code then scores required skills, role evidence, experience, nice-to-have skills, and the location already present in the role data. With recruiter preferences, the final score is 70% technical fit and 30% preference alignment. Required location, availability, evidence, and experience criteria filter candidates.”
+“OpenAI embeds the role query, and pgvector retrieves relevant profiles. Deterministic code then scores required skills, role evidence, experience, nice-to-have skills, and the location already present in the role data. With recruiter preferences, the final score is 70% technical fit and 30% preference alignment. A known value below the role's experience minimum is filtered from the primary shortlist, while the upper bound is a soft target and unknown experience stays reviewable.”
 
 “The model receives the completed rank and evidence to write the explanation. It cannot choose or recompute the ranking.”
 

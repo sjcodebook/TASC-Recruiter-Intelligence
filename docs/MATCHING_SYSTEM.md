@@ -48,9 +48,11 @@ The mix lets resume wording vary while retaining a direct signal that the candid
 
 ### Experience
 
-A candidate inside the stated range receives full experience points. Outside the range, the factor falls by 0.2 for each year of distance, with a floor of 0.2. Unknown experience receives a neutral factor of 0.5 and a confidence penalty.
+The lower and upper bounds are intentionally asymmetric. A known value below the minimum loses 0.5 of the experience factor for each missing year and cannot enter the primary shortlist. A candidate inside the range receives full experience points. Above the target maximum, the factor falls by only 0.1 per additional year, with a floor of 0.5. For a 4–7 year role, 3 years scores 5/10 and is filtered from the primary shortlist, 4–7 years scores 10/10, and 8 years scores 9/10.
 
-Being slightly above the range is therefore a modest mismatch, not an automatic rejection.
+The distinction is deliberate: falling below a stated minimum is a capability risk, while being slightly above a target range is usually a level, compensation, or retention question rather than a capability failure. Unknown experience receives a neutral factor of 0.5, remains reviewable, and is presented as an evidence gap instead of being treated as a confirmed failure.
+
+An explicit required recruiter criterion with a minimum number of years replaces the role's default minimum for that run. If that new minimum is above the role's original target maximum, the effective target range extends to the new minimum so an exact match receives full credit. This lets a recruiter deliberately broaden or tighten the pool while keeping the override visible in the interpreted rubric.
 
 ### Location
 
@@ -97,12 +99,13 @@ Hard constraints filter candidates before the shortlist is created. They do not 
 
 ## 5. Relevance floor and ranking
 
-After scoring, a candidate must satisfy both conditions to appear:
+After scoring, a candidate must satisfy all three conditions to appear:
 
 1. At least 50% of required skills are evidenced.
 2. Technical role fit is at least 45/100.
+3. When experience is known, it meets the effective minimum for the run.
 
-Eligible and qualified candidates sort by final score, then evidence confidence. The selected shortlist receives ranks only after filtering, so the displayed rank always matches the visible order.
+Eligible and qualified candidates sort by final score, then evidence confidence. The selected shortlist receives ranks only after filtering, so the displayed rank always matches the visible order. When otherwise relevant profiles are removed solely for falling below the experience minimum, the interface reports that count rather than silently filling the requested shortlist with underqualified candidates.
 
 ## 6. Evidence confidence
 

@@ -97,7 +97,10 @@ export type RankedCandidate = Candidate & {
   confidence: number;
   fitBand: "Strong" | "Promising" | "Stretch";
   eligible: boolean;
+  eligibleWithoutExperience: boolean;
   qualified: boolean;
+  meetsMinimumExperience: boolean | null;
+  meetsRoleRelevanceThreshold: boolean;
   matchedRequiredSkills: string[];
   missingRequiredSkills: string[];
   matchedPreferredSkills: string[];
@@ -120,5 +123,7 @@ export type MatchResponse = {
   requestedLimit: number;
   eligibleCount: number;
   qualifiedCount: number;
+  belowMinimumExperienceCount: number;
+  minimumExperienceYears: number;
   appliedConstraints: string[];
 };

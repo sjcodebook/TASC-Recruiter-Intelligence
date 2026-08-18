@@ -59,7 +59,9 @@ With no recruiter guidance, the technical role-fit score is the final score:
 
 When guidance contains preferences, the final score becomes 70% technical role fit and 30% recruiter-priority alignment. Required criteria filter candidates before ranking. In this recruiter context, “should be in Dubai” is required, while “ideally should be in Dubai” remains preferred because explicit soft language takes precedence. The same contract supports availability, required or excluded evidence, numeric experience, and alternative or excluded locations.
 
-Candidates must also meet a small relevance floor: at least half of the required skills and a technical role-fit score of 45. This prevents a strong location or preference signal from promoting an unrelated profile.
+Candidates must also meet a small relevance floor: at least half of the required skills and a technical role-fit score of 45. A known experience value below the role minimum is excluded from the primary shortlist. The upper bound remains a soft target, so one additional year receives only a small penalty rather than causing rejection. Unknown experience stays reviewable and is clearly marked for verification. Explicit required recruiter guidance can replace the default minimum for that run.
+
+If this leaves fewer candidates than requested, the interface reports how many otherwise relevant profiles were excluded for falling below the minimum. It does not silently pad the shortlist with underqualified profiles.
 
 The complete formulas, tie-breaking rules, confidence calculation, and examples are in [Matching system](docs/MATCHING_SYSTEM.md).
 
@@ -109,7 +111,7 @@ The live version uses three Railway services: a pgvector-enabled Postgres databa
 
 - Skill matching uses normalized terms and a small, visible alias map.
 - Missing experience, location, work history, or notice period lowers evidence confidence.
-- Missing experience receives a neutral score, not a penalty disguised as certainty.
+- Missing experience receives a neutral score and remains reviewable, but is shown as an evidence gap rather than confirmed alignment.
 - Common notice-period formats are normalized; ambiguous values remain unknown.
 - Exact content duplicates are hidden. Fuzzy duplicate detection is a sensible production follow-up.
 - Protected characteristics are excluded from prompts and scoring.
@@ -130,4 +132,4 @@ In a staged rollout, I would measure shortlist acceptance, time to first qualifi
 - [Detailed matching logic](docs/MATCHING_SYSTEM.md)
 - [Five-minute Loom outline](docs/LOOM_SCRIPT.md)
 
-Current verification: 36 API tests pass, both production builds pass, and the core flow has been exercised in a real browser against Postgres, pgvector, and OpenAI.
+Current verification: 37 API tests pass, both production builds pass, and the core flow has been exercised in a real browser against Postgres, pgvector, and OpenAI.

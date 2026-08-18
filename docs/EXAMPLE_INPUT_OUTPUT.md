@@ -9,12 +9,12 @@ With no recruiter guidance, the role's own skills, experience range, seniority e
 | Rank | Candidate | Location | Technical fit |
 | ---: | --- | --- | ---: |
 | 1 | C117 | Dubai | 85.2 |
-| 2 | C037 | Riyadh | 77.6 |
+| 2 | C037 | Riyadh | 78.6 |
 | 3 | C032 | Abu Dhabi | 76.3 |
 | 4 | C040 | Abu Dhabi | 75.5 |
-| 5 | C101 | Cairo | 74.6 |
+| 5 | C031 | Cairo | 74.6 |
 
-C117 leads because it has strong required-skill and role evidence plus an exact location match. Being one year above the target range is only a modest experience mismatch.
+C117 leads because it has strong required-skill and role evidence plus an exact location match. Its experience could not be reliably parsed, so it receives a neutral experience score and the interface asks the recruiter to verify it.
 
 ## Guided request
 
@@ -58,12 +58,14 @@ The Dubai clause is a hard eligibility requirement. Immediate availability is a 
 {
   "totalConsidered": 110,
   "duplicatesHidden": 10,
+  "minimumExperienceYears": 2,
+  "belowMinimumExperienceCount": 0,
   "candidates": [
     {
       "rank": 1,
       "candidateId": "C035",
-      "score": 73.8,
-      "roleFitScore": 69.0,
+      "score": 75.8,
+      "roleFitScore": 71.9,
       "preferenceScore": 85.0,
       "confidence": 100,
       "fitBand": "Promising",
@@ -73,7 +75,7 @@ The Dubai clause is a hard eligibility requirement. Immediate availability is a 
     {
       "rank": 2,
       "candidateId": "C117",
-      "score": 59.5,
+      "score": 59.4,
       "roleFitScore": 85.2,
       "preferenceScore": 0,
       "confidence": 82,
@@ -97,8 +99,8 @@ If the recruiter changes immediate availability from preferred to required, neit
 
 ## 1. C035 - Data analyst with a passion for turning numbers into decisions
 
-**Match score:** 73.8/100
-**Technical role fit:** 69.0/100
+**Match score:** 75.8/100
+**Technical role fit:** 71.9/100
 **Recruiter priorities:** 85.0/100
 **Evidence confidence:** 100%
 **Location:** Dubai, UAE

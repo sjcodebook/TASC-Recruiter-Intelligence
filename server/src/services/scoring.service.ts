@@ -39,6 +39,17 @@ export function experiencePreferenceScore(
   return Math.max(0, 100 - (below + above) * 20);
 }
 
+export function roleExperienceFactor(
+  years: number | null,
+  minYears: number,
+  maxYears: number
+): number {
+  if (years === null) return 0.5;
+  if (years < minYears) return Math.max(0, 1 - (minYears - years) * 0.5);
+  if (years <= maxYears) return 1;
+  return Math.max(0.5, 1 - (years - maxYears) * 0.1);
+}
+
 function matchesAnyLocation(candidateLocation: string, values: string[]): boolean {
   return values.some((value) => candidateLocation.includes(normalizeText(value)));
 }
@@ -48,6 +59,13 @@ function sameCountryAsAny(candidateLocation: string, values: string[]): boolean 
     const country = CITY_COUNTRY[normalizeText(value)];
     return Boolean(country && candidateLocation.includes(country));
   });
+}
+
+export function effectiveMinimumExperience(role: Role, guidance: Guidance): number {
+  if (guidance.experience?.mode === "required" && guidance.experience.minYears !== null) {
+    return guidance.experience.minYears;
+  }
+  return role.experienceMin;
 }
 
 @Service([])
@@ -74,17 +92,13 @@ export class ScoringService {
       0.6 * semantic + 0.4 * Math.min(1, roleEvidence)
     );
 
-    let experienceFactor = 0.5;
-    if (candidate.experienceYears !== null) {
-      if (candidate.experienceYears >= role.experienceMin && candidate.experienceYears <= role.experienceMax) {
-        experienceFactor = 1;
-      } else {
-        const distance = candidate.experienceYears < role.experienceMin
-          ? role.experienceMin - candidate.experienceYears
-          : candidate.experienceYears - role.experienceMax;
-        experienceFactor = Math.max(0.2, 1 - distance * 0.2);
-      }
-    }
+    const minimumExperienceYears = effectiveMinimumExperience(role, guidance);
+    const maximumExperienceYears = Math.max(role.experienceMax, minimumExperienceYears);
+    const experienceFactor = roleExperienceFactor(
+      candidate.experienceYears,
+      minimumExperienceYears,
+      maximumExperienceYears
+    );
     const experience = experienceWeight * experienceFactor;
     const preferredSkills = role.niceToHaveSkills.length
       ? 5 * (matchedPreferredSkills.length / role.niceToHaveSkills.length)
@@ -165,17 +179,21 @@ export class ScoringService {
       || (candidate.experienceYears !== null
         && (guidance.experience.minYears === null || candidate.experienceYears >= guidance.experience.minYears)
         && (guidance.experience.maxYears === null || candidate.experienceYears <= guidance.experience.maxYears));
-    const eligible = hardLocationEligible
+    const eligibleWithoutExperience = hardLocationEligible
       && hardAvailabilityEligible
-      && hardTermsEligible
-      && hardExperienceEligible;
+      && hardTermsEligible;
+    const eligible = eligibleWithoutExperience && hardExperienceEligible;
     const matchedGuidanceTerms = guidance.terms
       .filter((criterion) => {
         const matched = termMatches(criterion.value, searchable);
         return criterion.excluded ? !matched : matched;
       })
       .map((criterion) => criterion.excluded ? `Without ${criterion.value}` : criterion.value);
-    const qualified = requiredCoverage >= 0.5 && roleFitScore >= 45;
+    const meetsMinimumExperience = candidate.experienceYears === null
+      ? null
+      : candidate.experienceYears >= minimumExperienceYears;
+    const meetsRoleRelevanceThreshold = requiredCoverage >= 0.5 && roleFitScore >= 45;
+    const qualified = meetsRoleRelevanceThreshold && meetsMinimumExperience !== false;
 
     const confidencePenalty = candidate.dataQuality.reduce(
       (sum, issue) => sum + (issue.severity === "high" ? 18 : issue.severity === "medium" ? 9 : 4),
@@ -185,9 +203,15 @@ export class ScoringService {
     const gaps = [
       ...missingRequiredSkills.map((skill) => `${skill} is not evidenced in the supplied profile.`),
       ...(candidate.experienceYears === null ? ["Years of experience could not be verified."] : []),
+      ...(meetsMinimumExperience === false
+        ? [`The reported ${candidate.experienceYears} years of experience is below the ${minimumExperienceYears}-year minimum.`]
+        : []),
+      ...(candidate.experienceYears !== null && candidate.experienceYears > maximumExperienceYears
+        ? [`The reported ${candidate.experienceYears} years of experience is above the ${maximumExperienceYears}-year target maximum; confirm level and expectations.`]
+        : []),
       ...(!sameCity ? [`Location alignment with ${role.location} should be confirmed.`] : []),
       ...(candidate.noticeDays === null ? ["Availability needs confirmation."] : []),
-      ...(!qualified ? ["The profile is below the minimum role-relevance threshold."] : [])
+      ...(!meetsRoleRelevanceThreshold ? ["The profile is below the minimum role-relevance threshold."] : [])
     ].slice(0, 4);
     if (gaps.length === 0) gaps.push("Validate the depth and recency of the strongest matched skills.");
 
@@ -210,7 +234,10 @@ export class ScoringService {
       confidence,
       fitBand: score >= 75 ? "Strong" : score >= 60 ? "Promising" : "Stretch",
       eligible,
+      eligibleWithoutExperience,
       qualified,
+      meetsMinimumExperience,
+      meetsRoleRelevanceThreshold,
       matchedRequiredSkills,
       missingRequiredSkills,
       matchedPreferredSkills,

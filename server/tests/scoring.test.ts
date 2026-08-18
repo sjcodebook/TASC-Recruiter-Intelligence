@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { Candidate, Guidance, Role } from "../src/domain/types.js";
 import {
   availabilityPreferenceScore,
+  effectiveMinimumExperience,
   experiencePreferenceScore,
+  roleExperienceFactor,
   ScoringService
 } from "../src/services/scoring.service.js";
 
@@ -133,9 +135,90 @@ describe("hybrid candidate scoring", () => {
       }
     });
     expect(required.eligible).toBe(false);
+    expect(required.eligibleWithoutExperience).toBe(true);
+    const exactRaisedMinimum = new ScoringService().score(candidate({ experienceYears: 5 }), role, {
+      ...guidance,
+      experience: {
+        minYears: 5,
+        maxYears: null,
+        mode: "required",
+        sourceText: "at least 5 years"
+      }
+    });
+    expect(exactRaisedMinimum.scoreBreakdown.experience).toBe(10);
+    expect(exactRaisedMinimum.qualified).toBe(true);
     expect(experiencePreferenceScore(5, 5, null)).toBe(100);
     expect(experiencePreferenceScore(3, 5, null)).toBe(60);
     expect(experiencePreferenceScore(null, 5, null)).toBe(15);
+  });
+
+  it("enforces the role minimum while treating the upper bound as a soft target", () => {
+    expect(roleExperienceFactor(3, 4, 7)).toBe(0.5);
+    expect(roleExperienceFactor(4, 4, 7)).toBe(1);
+    expect(roleExperienceFactor(7, 4, 7)).toBe(1);
+    expect(roleExperienceFactor(8, 4, 7)).toBe(0.9);
+    expect(roleExperienceFactor(9, 4, 7)).toBe(0.8);
+    expect(roleExperienceFactor(null, 4, 7)).toBe(0.5);
+
+    const seniorRole: Role = {
+      ...role,
+      experienceMin: 4,
+      experienceMax: 7,
+      seniority: "Senior"
+    };
+    const belowMinimum = new ScoringService().score(
+      candidate({ experienceYears: 3 }),
+      seniorRole,
+      guidance
+    );
+    const withinRange = new ScoringService().score(
+      candidate({ experienceYears: 5 }),
+      seniorRole,
+      guidance
+    );
+    const slightlyAbove = new ScoringService().score(
+      candidate({ experienceYears: 8 }),
+      seniorRole,
+      guidance
+    );
+    const unknown = new ScoringService().score(
+      candidate({ experienceYears: null }),
+      seniorRole,
+      guidance
+    );
+
+    expect(belowMinimum.scoreBreakdown.experience).toBe(5);
+    expect(belowMinimum.meetsMinimumExperience).toBe(false);
+    expect(belowMinimum.meetsRoleRelevanceThreshold).toBe(true);
+    expect(belowMinimum.qualified).toBe(false);
+    expect(belowMinimum.gaps).toContain(
+      "The reported 3 years of experience is below the 4-year minimum."
+    );
+    expect(withinRange.scoreBreakdown.experience).toBe(10);
+    expect(withinRange.qualified).toBe(true);
+    expect(slightlyAbove.scoreBreakdown.experience).toBe(9);
+    expect(slightlyAbove.qualified).toBe(true);
+    expect(unknown.scoreBreakdown.experience).toBe(5);
+    expect(unknown.meetsMinimumExperience).toBeNull();
+    expect(unknown.qualified).toBe(true);
+
+    const recruiterOverride: Guidance = {
+      ...guidance,
+      experience: {
+        minYears: 3,
+        maxYears: null,
+        mode: "required",
+        sourceText: "consider candidates with at least 3 years"
+      }
+    };
+    const explicitlyAllowed = new ScoringService().score(
+      candidate({ experienceYears: 3 }),
+      seniorRole,
+      recruiterOverride
+    );
+    expect(effectiveMinimumExperience(seniorRole, recruiterOverride)).toBe(3);
+    expect(explicitlyAllowed.meetsMinimumExperience).toBe(true);
+    expect(explicitlyAllowed.qualified).toBe(true);
   });
 
   it("supports alternative and excluded location constraints", () => {
@@ -276,7 +359,7 @@ describe("hybrid candidate scoring", () => {
       "C101",
       "C035"
     ]);
-    expect(ranked.map((profile) => profile.score)).toEqual([85.2, 77.6, 76.3, 75.6, 74.6, 68.6]);
+    expect(ranked.map((profile) => profile.score)).toEqual([85.2, 78.6, 76.3, 75.6, 74.6, 71.6]);
     expect(ranked[0].confidence).toBeLessThan(ranked[1].confidence);
   });
 
