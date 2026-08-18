@@ -217,6 +217,12 @@ button {
   font-weight: 720;
 }
 
+.select-wrap select:disabled,
+.guidance-block textarea:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
 .select-wrap > span {
   position: absolute;
   right: 2px;
@@ -337,6 +343,12 @@ button {
 .example-prompts button:hover {
   color: var(--ink);
   transform: translateX(2px);
+}
+
+.example-prompts button:disabled {
+  cursor: wait;
+  opacity: 0.45;
+  transform: none;
 }
 
 .run-button {
@@ -524,36 +536,140 @@ button {
   to { transform: rotate(360deg); }
 }
 
-.loading-state {
+.match-progress {
   min-height: 430px;
+  padding: 56px 4px 42px;
+  border-bottom: 1px solid var(--line-strong);
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 20px;
+}
+
+.match-progress.compact {
+  min-height: 0;
+  padding: 24px 2px 20px;
+}
+
+.progress-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-.scan-line {
-  width: 180px;
-  height: 1px;
+.progress-current {
+  min-height: 90px;
+  padding: 15px 0 13px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 24px;
+}
+
+.progress-current > div,
+.progress-current strong,
+.progress-current span {
+  display: block;
+}
+
+.progress-current strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(24px, 2.4vw, 34px);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.progress-current span {
+  max-width: 520px;
+  margin-top: 6px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.progress-current > b {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(38px, 4vw, 54px);
+  font-weight: 500;
+  line-height: 0.92;
+  letter-spacing: -0.065em;
+}
+
+.progress-track {
+  height: 4px;
   overflow: hidden;
-  background: var(--line-strong);
-  position: relative;
+  background: var(--line);
 }
 
-.scan-line::after {
-  content: "";
-  position: absolute;
-  inset: 0;
+.progress-track i {
+  display: block;
+  width: 0;
+  height: 100%;
   background: var(--accent);
-  transform: translateX(-100%);
-  animation: scan 1.1s ease-in-out infinite;
+  box-shadow: 8px 0 18px rgba(0, 166, 141, 0.38);
 }
 
-@keyframes scan {
-  50%, 100% { transform: translateX(100%); }
+.progress-stages {
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  list-style: none;
+}
+
+.progress-stages li {
+  min-width: 0;
+  padding: 10px 9px 0 0;
+  border-top: 1px solid var(--line);
+  color: #8a918f;
+}
+
+.progress-stages li + li {
+  padding-left: 9px;
+}
+
+.progress-stages span,
+.progress-stages b {
+  display: block;
+}
+
+.progress-stages span {
+  margin-bottom: 4px;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.progress-stages b {
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-stages li.current {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.progress-stages li.current span,
+.progress-stages li.done {
+  color: var(--accent-dark);
+}
+
+.match-progress > p {
+  margin: 14px 0 0;
+  color: var(--ink-soft);
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 .interpreted-guidance {
@@ -1342,6 +1458,39 @@ button {
     align-items: flex-start;
     flex-direction: column;
     gap: 10px;
+  }
+
+  .match-progress {
+    min-height: 390px;
+    padding: 42px 0 34px;
+  }
+
+  .match-progress.compact {
+    min-height: 0;
+    padding: 22px 0 18px;
+  }
+
+  .progress-current {
+    min-height: 104px;
+    align-items: center;
+  }
+
+  .progress-current span {
+    max-width: 320px;
+  }
+
+  .progress-stages {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .progress-stages::-webkit-scrollbar {
+    display: none;
+  }
+
+  .progress-stages li {
+    flex: 0 0 122px;
   }
 
   .approval-bar {

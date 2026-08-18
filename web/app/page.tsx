@@ -29,6 +29,43 @@ const BREAKDOWN_LABELS: Record<string, string> = {
   recruiterGuidance: "Recruiter priorities"
 };
 
+const MATCH_PROGRESS_STAGES = [
+  {
+    startsAtPercent: 0,
+    label: "Interpret guidance",
+    detail: "Turning recruiter language into required and preferred criteria."
+  },
+  {
+    startsAtPercent: 24,
+    label: "Retrieve profiles",
+    detail: "Embedding the search and querying candidate profiles with pgvector."
+  },
+  {
+    startsAtPercent: 48,
+    label: "Score the evidence",
+    detail: "Deduplicating profiles and calculating deterministic role-fit scores."
+  },
+  {
+    startsAtPercent: 70,
+    label: "Explain the ranking",
+    detail: "Writing evidence-grounded summaries, gaps, and interview questions."
+  },
+  {
+    startsAtPercent: 90,
+    label: "Save the shortlist",
+    detail: "Persisting the ranked result so it is ready for recruiter approval."
+  }
+] as const;
+
+type MatchProgress = {
+  percent: number;
+  stageIndex: number;
+  label: string;
+  detail: string;
+  elapsedSeconds: number;
+  complete: boolean;
+};
+
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong.";
 }
@@ -39,6 +76,36 @@ function normalizeGuidance(value: string): string {
 
 function formatScore(value: number): string {
   return value.toFixed(1);
+}
+
+function createMatchProgress(percent: number, elapsedMs: number): MatchProgress {
+  const stageIndex = Math.max(
+    0,
+    MATCH_PROGRESS_STAGES.findLastIndex((stage) => percent >= stage.startsAtPercent)
+  );
+  const stage = MATCH_PROGRESS_STAGES[stageIndex];
+  return {
+    percent,
+    stageIndex,
+    label: stage.label,
+    detail: stage.detail,
+    elapsedSeconds: Math.floor(elapsedMs / 1_000),
+    complete: false
+  };
+}
+
+function randomProgressIncrement(percent: number): number {
+  if (percent < 24) return 4 + Math.random() * 5;
+  if (percent < 48) return 2.5 + Math.random() * 4;
+  if (percent < 70) return 1.5 + Math.random() * 3;
+  if (percent < 88) return 0.7 + Math.random() * 1.8;
+  return 0.2 + Math.random() * 0.8;
+}
+
+function formatElapsed(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 function overrideSignature(overrides: GuidanceOverrides): string {
@@ -92,6 +159,8 @@ export default function Home() {
   const [activeCandidateId, setActiveCandidateId] = useState<string | null>(null);
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [matching, setMatching] = useState(false);
+  const [matchProgress, setMatchProgress] = useState<MatchProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [markdown, setMarkdown] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -101,6 +170,7 @@ export default function Home() {
     overrides: string;
   } | null>(null);
   const approveButtonRef = useRef<HTMLButtonElement>(null);
+  const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -121,6 +191,10 @@ export default function Home() {
         }
       })
       .catch((loadError) => setError(formatError(loadError)));
+  }, []);
+
+  useEffect(() => () => {
+    if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
   }, []);
 
   const selectedRole = useMemo(
@@ -149,10 +223,57 @@ export default function Home() {
     setMarkdown(null);
   }, [resultsAreStale]);
 
+  function startMatchProgress() {
+    if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
+    const startedAt = Date.now();
+    const initialPercent = 7 + Math.floor(Math.random() * 4);
+    setMatchProgress(createMatchProgress(initialPercent, 0));
+
+    const scheduleNextBurst = (first = false) => {
+      const delay = first
+        ? 260 + Math.random() * 280
+        : 430 + Math.random() * 760;
+      progressTimerRef.current = setTimeout(() => {
+        setMatchProgress((current) => {
+          if (!current || current.complete) return current;
+          const nextPercent = Math.min(
+            96,
+            Math.round(current.percent + randomProgressIncrement(current.percent))
+          );
+          return createMatchProgress(nextPercent, Date.now() - startedAt);
+        });
+        scheduleNextBurst();
+      }, delay);
+    };
+
+    scheduleNextBurst(true);
+  }
+
+  function completeMatchProgress() {
+    if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
+    progressTimerRef.current = null;
+    setMatchProgress((current) => ({
+      percent: 100,
+      stageIndex: MATCH_PROGRESS_STAGES.length,
+      label: "Shortlist ready",
+      detail: "The ranking, evidence, and recruiter brief are ready to review.",
+      elapsedSeconds: current?.elapsedSeconds ?? 0,
+      complete: true
+    }));
+  }
+
+  function stopMatchProgress() {
+    if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
+    progressTimerRef.current = null;
+    setMatchProgress(null);
+  }
+
   async function runMatch() {
     if (!roleId) return;
     const requestInput = { roleId, guidance, guidanceOverrides };
     setLoading(true);
+    setMatching(true);
+    startMatchProgress();
     setError(null);
     setMarkdown(null);
     try {
@@ -172,6 +293,8 @@ export default function Home() {
           ? { availabilityMode: nextResult.guidance.availability.mode }
           : {})
       };
+      completeMatchProgress();
+      await new Promise((resolve) => window.setTimeout(resolve, 520));
       setResult(nextResult);
       setGuidanceOverrides(resolvedOverrides);
       setLastRunInput({
@@ -184,6 +307,8 @@ export default function Home() {
     } catch (matchError) {
       setError(formatError(matchError));
     } finally {
+      stopMatchProgress();
+      setMatching(false);
       setLoading(false);
     }
   }
@@ -263,6 +388,7 @@ export default function Home() {
             <select
               id="role-select"
               value={roleId}
+              disabled={loading}
               onChange={(event) => {
                 setRoleId(event.target.value);
                 setGuidanceOverrides({});
@@ -302,6 +428,7 @@ export default function Home() {
             <textarea
               id="guidance"
               value={guidance}
+              disabled={loading}
               onChange={(event) => {
                 setGuidance(event.target.value);
                 setGuidanceOverrides({});
@@ -314,6 +441,7 @@ export default function Home() {
                 <button
                   key={example}
                   type="button"
+                  disabled={loading}
                   onClick={() => {
                     setGuidance(example);
                     setGuidanceOverrides({});
@@ -326,7 +454,13 @@ export default function Home() {
           </div>
 
           <button className="run-button" type="button" onClick={runMatch} disabled={loading || !roleId}>
-            <span>{loading ? "Evaluating profiles" : "Run candidate match"}</span>
+            <span>
+              {matching
+                ? `Matching ${matchProgress?.percent ?? 0}%`
+                : loading
+                  ? "Preparing brief"
+                  : "Run candidate match"}
+            </span>
             <span aria-hidden="true">→</span>
           </button>
           <p className="model-note">Scores stay deterministic. AI interprets guidance and writes evidence-grounded briefs.</p>
@@ -349,7 +483,11 @@ export default function Home() {
 
             {error && <div className="error-banner" role="alert">{error}</div>}
 
-            {resultsAreStale && (
+            {matching && matchProgress && (
+              <MatchProgressPanel progress={matchProgress} compact={Boolean(result)} />
+            )}
+
+            {resultsAreStale && !matching && (
               <motion.div
                 className="stale-results"
                 role="status"
@@ -372,13 +510,6 @@ export default function Home() {
                 <h3>Ready to compare evidence</h3>
                 <p>Select a role, add any recruiter priorities, and run the match. The system will retrieve, deduplicate, score, and explain the strongest profiles.</p>
               </motion.div>
-            )}
-
-            {loading && !result && (
-              <div className="loading-state" aria-live="polite">
-                <div className="scan-line" />
-                <span>Reading candidate evidence…</span>
-              </div>
             )}
 
             <AnimatePresence mode="wait">
@@ -446,7 +577,7 @@ export default function Home() {
                       candidate={candidate}
                       active={activeCandidate?.candidateId === candidate.candidateId}
                       selected={selectedCandidateIds.includes(candidate.candidateId)}
-                      disabled={resultsAreStale}
+                      disabled={resultsAreStale || matching}
                       onOpen={() => setActiveCandidateId(candidate.candidateId)}
                       onToggle={() => toggleCandidate(candidate.candidateId)}
                     />
@@ -579,6 +710,66 @@ export default function Home() {
         )}
       </AnimatePresence>
     </main>
+  );
+}
+
+function MatchProgressPanel({ progress, compact }: { progress: MatchProgress; compact: boolean }) {
+  return (
+    <motion.section
+      className={`match-progress ${compact ? "compact" : ""}`}
+      aria-live="polite"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      <div className="progress-kicker">
+        <span>Estimated progress</span>
+        <span>{formatElapsed(progress.elapsedSeconds)} elapsed</span>
+      </div>
+      <div className="progress-current">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={progress.label}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.16 }}
+          >
+            <strong>{progress.label}</strong>
+            <span>{progress.detail}</span>
+          </motion.div>
+        </AnimatePresence>
+        <b>{progress.percent}%</b>
+      </div>
+      <div
+        className="progress-track"
+        role="progressbar"
+        aria-label="Candidate matching progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress.percent}
+      >
+        <motion.i
+          animate={{ width: `${progress.percent}%` }}
+          transition={{ duration: progress.complete ? 0.28 : 0.4, ease: "easeOut" }}
+        />
+      </div>
+      <ol className="progress-stages">
+        {MATCH_PROGRESS_STAGES.map((stage, index) => {
+          const state = progress.complete || index < progress.stageIndex
+            ? "done"
+            : index === progress.stageIndex
+              ? "current"
+              : "upcoming";
+          return (
+            <li key={stage.label} className={state}>
+              <span>{progress.complete || index < progress.stageIndex ? "✓" : String(index + 1).padStart(2, "0")}</span>
+              <b>{stage.label}</b>
+            </li>
+          );
+        })}
+      </ol>
+      <p>Progress is estimated from the matching pipeline and pauses below 100% until the server confirms completion.</p>
+    </motion.section>
   );
 }
 
