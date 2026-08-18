@@ -107,6 +107,8 @@ docker compose down -v   # remove the local database volume as well
 
 The live version uses three Railway services: a pgvector-enabled Postgres database, the API built from `server/Dockerfile`, and the web application built from `web/Dockerfile`. The API migrates and idempotently seeds the supplied CSV data before starting.
 
+![Railway infrastructure](https://tasc.up.railway.app/infra.png)
+
 `WEB_ORIGIN` must match the public web origin without a trailing slash. `NEXT_PUBLIC_API_URL` must be available while the Next.js image is built because it is embedded in the browser bundle.
 
 ## Assumptions and limits
