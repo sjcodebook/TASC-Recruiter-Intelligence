@@ -1,8 +1,22 @@
 # Example input and output
 
-This example was generated from the supplied CSVs with OpenAI enabled.
+This example uses the supplied Data Analyst role and candidate dataset with OpenAI enabled.
 
-## Input
+## Default role rubric
+
+With no recruiter guidance, the role's own skills, experience range, seniority evidence, and Dubai location determine technical role fit. A verified browser run produced this review order:
+
+| Rank | Candidate | Location | Technical fit |
+| ---: | --- | --- | ---: |
+| 1 | C117 | Dubai | 85.2 |
+| 2 | C037 | Riyadh | 77.6 |
+| 3 | C032 | Abu Dhabi | 76.3 |
+| 4 | C040 | Abu Dhabi | 75.5 |
+| 5 | C101 | Cairo | 74.6 |
+
+C117 leads because it has strong required-skill and role evidence plus an exact location match. Being one year above the target range is only a modest experience mismatch.
+
+## Guided request
 
 ```json
 {
@@ -34,7 +48,7 @@ This example was generated from the supplied CSVs with OpenAI enabled.
 }
 ```
 
-The location clause is an eligibility requirement. Immediate availability is a preference, so it changes ranking without filtering candidates who have a notice period.
+The Dubai clause is a hard eligibility requirement. Immediate availability is a preference, so it changes order without removing candidates who have a notice period.
 
 ## Shortlist excerpt
 
@@ -61,13 +75,16 @@ The location clause is an eligibility requirement. Immediate availability is a p
       "roleFitScore": 85.2,
       "preferenceScore": 0,
       "confidence": 82,
+      "fitBand": "Stretch",
       "noticePeriod": "90 days notice"
     }
   ]
 }
 ```
 
-C117 is the stronger technical match, but C035 ranks first because its two-week notice period is substantially closer to the recruiter's explicit availability preference.
+C117 remains the stronger technical match. C035 ranks first in this run because both candidates satisfy the required Dubai constraint, while C035's two-week notice is much closer to the explicit availability preference.
+
+If the recruiter changes immediate availability from preferred to required, neither candidate qualifies and the UI explains that no profile met all constraints. That is filtering, not a score penalty.
 
 ## Approved Markdown excerpt
 
@@ -80,16 +97,15 @@ C117 is the stronger technical match, but C035 ranks first because its two-week 
 
 **Match score:** 73.8/100
 **Technical role fit:** 69.0/100
-**Recruiter priorities:** 85.0/100  
-**Evidence confidence:** 100%  
-**Location:** Dubai, UAE  
+**Recruiter priorities:** 85.0/100
+**Evidence confidence:** 100%
+**Location:** Dubai, UAE
 **Availability:** 2 weeks notice
 
 ### Why this candidate
 
-The candidate is Dubai-based and has strong evidence of SQL, Python/R, and
-statistics, with a two-week notice period that is closer to the
-immediate-availability preference.
+The candidate is Dubai-based and has evidence of SQL, Python/R, and statistics.
+The two-week notice period is closer to the immediate-availability preference.
 
 ### Gaps to validate
 

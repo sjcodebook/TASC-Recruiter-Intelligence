@@ -1,14 +1,16 @@
 # Prompt documentation
 
-The application requires OpenAI for embeddings, guidance interpretation, and evidence-grounded explanations. Retrieval and scoring remain deterministic and inspectable.
+OpenAI has two language tasks in the request path: interpreting recruiter guidance and explaining a completed shortlist. Candidate embeddings are created during seeding and query embeddings are created when a match runs.
 
-Both responses use Structured Outputs with Zod schemas, which prevents free-form parsing and makes model failures easy to handle.
+The prompts below mirror the implementation in [`openai.gateway.ts`](../server/src/infrastructure/openai/openai.gateway.ts). Both language responses use Structured Outputs with Zod schemas rather than free-form JSON parsing.
 
 ## 1. Recruiter guidance interpreter
 
-**Model:** `OPENAI_MODEL`, default `gpt-5.6-luna`  
-**Input:** the recruiter's optional guidance string  
-**Output:** a typed guidance object with structured location and availability criteria, priority terms, deprioritized terms, and an experience-weight adjustment
+**Model:** `OPENAI_MODEL`, default `gpt-5.6-luna`
+
+**Input:** optional recruiter guidance
+
+**Output:** typed location and availability criteria, priority terms, and an experience-weight adjustment
 
 System prompt:
 
@@ -23,13 +25,11 @@ years of experience, +5 when they explicitly prioritize years of experience,
 and 0 otherwise. Keep priority terms short. Do not infer protected traits.
 ```
 
-Example user input:
+Example:
 
 ```text
 We value client-facing experience over years of experience
 ```
-
-Expected structured shape:
 
 ```json
 {
@@ -41,15 +41,17 @@ Expected structured shape:
 }
 ```
 
-The deterministic parser also extracts explicit location and availability language before merging the model response. This is a constraint-safety layer, not an offline fallback. If OpenAI interpretation fails, the match request fails rather than switching modes.
+A deterministic parser also recognizes explicit location, availability, and constraint phrases before merging the model result. It protects high-impact constraints from inconsistent interpretation; it is not an offline fallback. If OpenAI fails, the match fails.
 
-`experienceWeightDelta` shifts points between two technical-role-fit components while keeping the rubric normalized to 100 points. The default allocation is 30 points for role evidence and 10 for experience. A value of `-5` changes that allocation to 35 and 5; `+5` changes it to 25 and 15.
+The UI displays the interpreted criteria and lets the recruiter change location or availability between preferred and required before rerunning the match.
 
 ## 2. Candidate explanation generator
 
-**Model:** `OPENAI_MODEL`, default `gpt-5.6-luna`  
-**Input:** the selected role, interpreted recruiter guidance, and structured evidence for the deterministic shortlist  
-**Output:** candidate ID, concise fit explanation, evidence gaps, and exactly three clarifying questions
+**Model:** `OPENAI_MODEL`, default `gpt-5.6-luna`
+
+**Input:** role, interpreted guidance, final rank, final scores, confidence, and structured candidate evidence
+
+**Output:** a short fit explanation, evidence gaps, and exactly three questions
 
 System prompt:
 
@@ -67,12 +69,12 @@ Questions must close the largest evidenced gaps and must not ask about protected
 traits.
 ```
 
-The model does not choose or rerank candidates. It receives the shortlist produced by the deterministic scorer. This keeps score changes testable and limits hallucination risk.
+The model receives candidates only after retrieval, eligibility, scoring, sorting, and shortlist selection. It cannot add a candidate or change a rank. Returned content is sanitized and rejected if it leaks schema field names, omits gaps, or does not contain exactly three distinct questions.
 
 ## Prompt-injection boundary
 
-Candidate fields can contain arbitrary text. They are serialized as data inside a JSON object and the system prompt explicitly labels them untrusted evidence. The model has no tools in either call and cannot modify the score, database, or approval state.
+Candidate fields are serialized as data inside the user message and explicitly labelled untrusted by the system prompt. Neither model call has tools or permission to change the database, score, shortlist, or approval state.
 
 ## Failure behavior
 
-`OPENAI_API_KEY` is mandatory. Missing configuration prevents the API from starting. Embedding, guidance, or explanation failures propagate to the current operation so the application never mixes embedding spaces or silently changes ranking and explanation behavior.
+`OPENAI_API_KEY` is mandatory and validated at startup. Embedding, interpretation, and explanation errors propagate to the operation. The application never switches embedding spaces, creates local synthetic embeddings, or silently substitutes a different explanation path.

@@ -1,84 +1,71 @@
-# TASC Recruiter intelligence 
+# TASC Recruiter Intelligence
 
-An evidence-first candidate matching workspace for in-house recruiters. A recruiter selects an open role, adds optional natural-language guidance, reviews a ranked and deduplicated shortlist, inspects the evidence behind each score, and approves candidates into a Markdown brief for the hiring manager.
+A recruiter selects an open role, adds optional hiring priorities, and gets a ranked shortlist with evidence, gaps, and questions to ask. After reviewing the results, they can approve candidates and download a Markdown brief for the hiring manager.
 
-The product intentionally separates retrieval, scoring, explanation, and approval. The score remains deterministic and inspectable. OpenAI is used where language understanding adds value: interpreting recruiter guidance and turning structured evidence into concise recruiter briefs.
+- [Live application](https://tasc.up.railway.app)
+- Loom walkthrough: add link after recording
+- [Prompts](docs/PROMPTS.md) · [Example run](docs/EXAMPLE_INPUT_OUTPUT.md) · [Matching system](docs/MATCHING_SYSTEM.md)
 
-## Product brief
+## What the product does
 
-Recruiters rarely need another resume search box. They need a defensible answer to four questions:
+1. Loads the 10 supplied roles and 120 candidate profiles.
+2. Lets the recruiter add guidance such as “prioritize candidates available immediately” or “must be based in Dubai.”
+3. Retrieves relevant profiles with pgvector, removes exact duplicates, and applies a deterministic scoring rubric.
+4. Shows the score, supporting evidence, gaps, confidence, and three follow-up questions for each candidate.
+5. Requires the recruiter to select candidates before producing a hiring-manager brief.
 
-1. Who should I review first?
-2. What evidence supports that recommendation?
-3. What is missing or unreliable?
-4. What should I ask next?
+The tool recommends a review order. It does not make a hiring decision.
 
-TASC Recruiter intelligence  turns a role and optional recruiter guidance into a shortlist that answers those questions. It also keeps the recruiter in control: hard filters are applied only when guidance uses explicit constraint language, candidates must be selected before approval, and the final artifact is editable Markdown rather than an automated hiring decision.
+## Why the system is hybrid
 
-### Key product choices
+I wanted the flexible parts to use AI without making the ranking opaque. OpenAI interprets recruiter language and writes concise, evidence-grounded explanations. Retrieval, eligibility, and scoring remain deterministic, so the same inputs produce the same ranking and every point can be inspected.
 
-- Match score and evidence confidence are separate. A profile can look relevant but still have low confidence because its experience, location, or work history is incomplete.
-- Candidate content is treated as untrusted evidence, never as instructions to the model.
-- Missing skills are described as "not evidenced," not as proven absences.
-- Duplicate profiles are hidden from the shortlist and reported in the run summary.
-- `OPENAI_API_KEY` is required. The API fails during configuration rather than silently switching embedding or explanation behavior.
+Candidate profile text is treated as untrusted data, not as model instructions. Missing information is described as “not evidenced” and lowers confidence rather than being invented.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
   UI["Next.js recruiter workspace"] --> API["Express API"]
-  API --> GUIDE["Guidance interpreter"]
-  API --> RETRIEVE["Embedding retrieval"]
-  RETRIEVE --> PG["Postgres + pgvector"]
-  GUIDE --> SCORE["Deterministic hybrid scorer"]
-  PG --> SCORE
-  SCORE --> EXPLAIN["Evidence-grounded explanation"]
+  API --> GUIDE["Interpret guidance"]
+  API --> RETRIEVE["OpenAI embedding + pgvector retrieval"]
+  GUIDE --> SCORE["Deterministic scorer"]
+  RETRIEVE --> SCORE
+  SCORE --> EXPLAIN["Evidence-grounded OpenAI brief"]
   EXPLAIN --> UI
   UI --> APPROVE["Recruiter approval"]
   APPROVE --> MD["Hiring-manager Markdown"]
 ```
 
-- `web`: Next.js and TypeScript frontend.
-- `server`: Node.js, Express, TypeScript, and `@freshgum/typedi`.
-- `data`: the supplied role and candidate CSVs.
-- Postgres: source of truth for normalized profiles, match runs, scores, and approvals.
-- pgvector: cosine-similarity retrieval over 256-dimension OpenAI profile embeddings.
-- OpenAI: official JavaScript SDK, Responses API Structured Outputs, and embeddings API.
+- `web`: Next.js, React, and TypeScript.
+- `server`: Node.js, Express, TypeScript, and TypeDI.
+- Postgres: roles, normalized candidates, embeddings, match runs, and approvals.
+- pgvector: cosine-similarity retrieval using 256-dimension OpenAI embeddings.
+- OpenAI: the official JavaScript SDK, Responses API Structured Outputs, and embeddings API.
 
-Dependency injection is intentionally boring. Services declare constructor dependencies, while `Container.get` appears only at composition roots such as `createApp` and the seed script. Controllers do not reach into the container.
+Services use constructor injection. `Container.get` is limited to composition roots such as application startup and database seeding.
 
-## Matching approach
+## Matching in brief
 
-The pipeline is hybrid rather than LLM-only:
+With no recruiter guidance, the technical role-fit score is the final score:
 
-1. Normalize obvious CSV inconsistencies without inventing missing facts.
-2. Flag missing or suspicious evidence and fingerprint exact duplicate profiles.
-3. Convert the role, recruiter guidance, and candidate profiles into embeddings.
-4. Retrieve up to 120 candidates with pgvector cosine distance.
-5. Apply deterministic, transparent scoring and explicit eligibility rules.
-6. Generate evidence-grounded explanations and exactly three questions.
-7. Persist the run and wait for recruiter approval.
+| Component | Points |
+| --- | ---: |
+| Required skills | 40 |
+| Semantic and role evidence | 30 |
+| Experience alignment | 10 |
+| Nice-to-have skills | 5 |
+| Role location | 15 |
 
-### Default score rubric
+When guidance contains preferences, the final score becomes 70% technical role fit and 30% recruiter-priority alignment. Explicit words such as “must,” “required,” “only,” or “within” create eligibility constraints instead of preferences.
 
-| Technical role-fit component | Points | What it measures |
-| --- | ---: | --- |
-| Required skills | 40 | Direct or alias-based evidence for role requirements |
-| Role evidence | 30 | Semantic similarity plus title/past-role overlap |
-| Experience | 10 | Alignment with the role's stated experience range |
-| Preferred skills | 5 | Evidence for nice-to-have requirements |
-| Role location | 15 | Exact-city alignment, with partial same-country credit |
+Candidates must also meet a small relevance floor: at least half of the required skills and a technical role-fit score of 45. This prevents a strong location or preference signal from promoting an unrelated profile.
 
-Without recruiter preferences, the technical role-fit score is the final score. When preferences exist, the final score is 70% technical role fit and 30% recruiter-priority alignment. Preferences change ranking, while hard eligibility gates are created only by explicit constraint language such as "must," "only," "required," or "within."
+The complete formulas, tie-breaking rules, confidence calculation, and examples are in [Matching system](docs/MATCHING_SYSTEM.md).
 
-The table shows the default weights. Exact-city alignment receives 15 points, same-country alignment receives 6, and other or unknown locations receive 0. Missing experience receives a neutral 5 of 10 points and lowers evidence confidence instead of being treated as evidence of a poor fit. Relative guidance can shift five points between role evidence and experience while preserving a 100-point technical rubric. For example, "value client-facing experience over years of experience" moves five points from experience duration to role evidence and separately rewards direct client-facing evidence in the recruiter-priority score.
+## Run locally
 
-This rubric is deliberately not a hiring decision. It is a review-order heuristic whose components are visible in the interface.
-
-## Local setup
-
-Requirements: Node.js 24+, npm, and Docker Desktop.
+Requirements: Node.js 24+, npm, Docker Desktop, and an OpenAI API key.
 
 ```bash
 npm install
@@ -90,99 +77,57 @@ npm run db:setup
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The API runs on [http://localhost:4000](http://localhost:4000), and pgvector is exposed locally on port `54329`.
+Set `OPENAI_API_KEY` in `server/.env`. The API refuses to start without it. Open [http://localhost:3000](http://localhost:3000); the API runs on port `4000` and local pgvector on `54329`.
 
-`OPENAI_API_KEY` is required in `server/.env`. The API validates configuration during startup and does not run without it. Next.js reads `NEXT_PUBLIC_API_URL` from `web/.env.local`.
+The main environment variables are:
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Postgres connection string |
+| `OPENAI_API_KEY` | Required for embeddings, guidance, and explanations |
+| `OPENAI_MODEL` | Structured-output model; defaults to `gpt-5.6-luna` |
+| `OPENAI_EMBEDDING_MODEL` | Defaults to `text-embedding-3-small` |
+| `WEB_ORIGIN` | Browser origin allowed by the API |
+| `NEXT_PUBLIC_API_URL` | Browser-visible API URL |
 
 Useful commands:
 
 ```bash
-npm test                 # unit tests
+npm test                 # API unit tests
 npm run build            # production builds for API and web
-npm run db:down          # stop local Postgres, preserving its named volume
-docker compose down -v   # optional full local database reset
+npm run db:down          # stop Postgres and keep its named volume
+docker compose down -v   # remove the local database volume as well
 ```
 
-## Environment variables
+## Deployment
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL` | local Docker URL | Postgres connection string |
-| `PORT` | `4000` | API port |
-| `WEB_ORIGIN` | `http://localhost:3000` | Allowed browser origin |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:4000` | Browser-visible API URL |
-| `OPENAI_API_KEY` | required | OpenAI embeddings, guidance interpretation, and explanations |
-| `OPENAI_MODEL` | `gpt-5.6-luna` | Structured guidance and explanation model |
-| `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | Candidate and role embedding model |
-| `DATA_DIR` | `../data` from server | Optional CSV directory override |
+The live version uses three Railway services: a pgvector-enabled Postgres database, the API built from `server/Dockerfile`, and the web application built from `web/Dockerfile`. The API migrates and idempotently seeds the supplied CSV data before starting.
 
-## Railway deployment
+`WEB_ORIGIN` must match the public web origin without a trailing slash. `NEXT_PUBLIC_API_URL` must be available while the Next.js image is built because it is embedded in the browser bundle.
 
-Create one Railway project with three services:
+## Assumptions and limits
 
-1. **Postgres**: deploy Railway's [pgvector template](https://railway.com/deploy/pgvector-latest) rather than the standard Postgres service, which does not bundle the extension. Expose the pgvector service's private `DATABASE_URL` to the API service. The API migration runs `CREATE EXTENSION IF NOT EXISTS vector`.
-2. **API**: deploy this repository using `server/Dockerfile`. Set `DATABASE_URL`, `WEB_ORIGIN`, and `OPENAI_API_KEY`. The container migrates and idempotently seeds before starting.
-3. **Web**: deploy this repository using `web/Dockerfile`. Set the build argument and environment variable `NEXT_PUBLIC_API_URL` to the public API URL.
+- Skill matching uses normalized terms and a small, visible alias map.
+- Missing experience, location, work history, or notice period lowers evidence confidence.
+- Missing experience receives a neutral score, not a penalty disguised as certainty.
+- Common notice-period formats are normalized; ambiguous values remain unknown.
+- Exact content duplicates are hidden. Fuzzy duplicate detection is a sensible production follow-up.
+- Protected characteristics are excluded from prompts and scoring.
+- Authentication, recruiter audit logs, and a formal fairness review would be required before production use.
 
-The API Dockerfile expects the repository root as its build context because it copies the supplied CSV files from `data/`.
+## How I would evaluate match quality at scale
 
-## Assumptions and edge cases
+I would start with a multi-rater judgment set: real role-candidate pairs labelled independently by recruiters and hiring managers across departments, seniority levels, locations, and data-quality conditions. Offline ranking metrics would include Precision@5 and NDCG@5, but I would also measure whether every claimed skill and gap is supported by the source profile.
 
-- Skills are comma-separated and matched using normalized terms plus a small, visible alias map.
-- Missing years, location, work history, or notice period reduce evidence confidence.
-- Negative experience is treated as invalid. Written experience such as "five years" is parsed.
-- Common notice variants such as immediate, days, weeks, and months are normalized. "Negotiable" stays unknown.
-- Suspicious education date ranges are surfaced as a low-severity note and are not repaired.
-- Exact normalized duplicates are deduplicated by content fingerprint. Fuzzy duplicate detection would be a production follow-up.
-- Protected characteristics are excluded from prompts and scoring. A production system would add formal fairness review and jurisdiction-specific compliance controls.
+Guidance needs its own contrast tests. Changing “prefer Dubai” to “must be in Dubai” should predictably change reranking into filtering, while unrelated candidates should remain stable. Fairness tests would remove or swap demographic proxies where lawful and compare results across relevant slices.
 
-## Prompts and example run
+In a staged rollout, I would measure shortlist acceptance, time to first qualified shortlist, recruiter reorder and rejection reasons, edits to the generated brief, and hiring-manager acceptance. Recruiter corrections should feed an evaluation set and versioned rubric experiments, not unchecked online self-training.
 
-- [Prompts](docs/PROMPTS.md)
+## Submission notes
+
+- [Prompt documentation](docs/PROMPTS.md)
 - [Example input and output](docs/EXAMPLE_INPUT_OUTPUT.md)
-- [Suggested 3-6 minute Loom script](docs/LOOM_SCRIPT.md)
+- [Detailed matching logic](docs/MATCHING_SYSTEM.md)
+- [Five-minute Loom outline](docs/LOOM_SCRIPT.md)
 
-## Evaluating match quality at scale
-
-Matching is subjective, so I would use a layered evaluation program rather than a single accuracy number.
-
-### 1. Build a judgment set
-
-Sample real role-candidate pairs across functions, seniority, geography, and data quality. Ask at least two recruiters plus the hiring manager to independently label relevance and state why. Adjudicate disagreements, but retain them as a measure of task ambiguity.
-
-### 2. Measure ranking and evidence quality offline
-
-- `Precision@5` and `NDCG@5` against recruiter judgments.
-- Recall of candidates who reached screen, interview, or offer stages.
-- Required-skill evidence precision: when the product says a skill matched, can a reviewer point to supporting text?
-- Gap and question usefulness, rated blindly by recruiters.
-- Calibration by score band and evidence-confidence band.
-- Slice results by role family, seniority, country, source, and missing-data pattern.
-
-### 3. Evaluate guidance following
-
-Create contrast sets where one phrase changes, such as "prefer immediate availability" versus "must start within 30 days." Verify that soft guidance reranks while hard guidance filters, and that unrelated candidates do not move unexpectedly.
-
-### 4. Run counterfactual fairness and safety tests
-
-Remove or swap names and other demographic proxies where lawful, then test whether rankings remain stable. Review disparate selection rates by relevant protected groups with legal and HR partners. Red-team prompt injection embedded in candidate content and unsupported model claims.
-
-### 5. Measure recruiter outcomes online
-
-Run a staged A/B test against the existing workflow. Primary measures would be shortlist acceptance rate, time to first qualified shortlist, recruiter edits to the generated brief, and hiring-manager acceptance. Downstream measures such as interview-to-offer conversion are useful but heavily confounded, so they should be interpreted with care.
-
-### 6. Close the feedback loop
-
-Capture structured reasons when recruiters reorder, reject, or approve candidates. Use that feedback for rubric tuning and retrieval evaluation, not direct online self-training. Version the rubric and prompts, run regression suites before release, and monitor drift as roles and candidate sources change.
-
-The success criterion is not "the AI picked the hire." It is that recruiters find qualified people faster, can verify every claim, and retain meaningful control over the decision.
-
-## Tests completed
-
-- Normalization and data-quality unit tests.
-- Recruiter-guidance interpretation unit tests.
-- Hybrid scoring and eligibility unit tests.
-- TypeScript production builds for API and frontend.
-- Live Postgres 17 plus pgvector 0.8.6 migration and seed.
-- API checks for health, metadata, role retrieval, matching, approval, and Markdown output.
-- Browser walkthrough on desktop and mobile viewports.
+Current verification: 25 API tests pass, both production builds pass, and the core flow has been exercised in a real browser against Postgres, pgvector, and OpenAI.

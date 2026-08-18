@@ -1,38 +1,52 @@
-# Suggested Loom walkthrough (3-6 minutes)
+# Five-minute Loom outline
 
-## 0:00-0:40 - Problem and product choice
+This is a speaking guide, not a script to read word for word. Keep the product visible for most of the recording.
 
-"I built this for an in-house recruiter who needs a defensible shortlist, not an autonomous hiring decision. The core workflow is role selection, optional recruiter guidance, evidence review, and explicit approval into a hiring-manager brief."
+## 0:00–0:35 · Frame the problem
 
-## 0:40-1:40 - Demo the workflow
+“I built this for an in-house recruiter who needs a defensible review order, not an automated hiring decision. The recruiter chooses a role, adds optional priorities, reviews the supporting evidence, and approves candidates into a Markdown brief.”
 
-1. Select the Data Analyst role.
-2. Click "Prioritize candidates available immediately."
-3. Run the match.
-4. Point out 110 unique profiles considered and ten duplicates hidden.
-5. Open two different candidates and compare match score with evidence confidence.
-6. Show score composition, matched evidence, gaps, and exactly three questions.
-7. Select candidates, approve them, and download the Markdown brief.
+Briefly show the role list and the supplied dataset size.
 
-## 1:40-3:20 - Explain the AI system
+## 0:35–1:50 · Run a real match
 
-"The system is hybrid. pgvector retrieves semantically relevant profiles, then a deterministic rubric ranks them. Technical role fit prioritizes required skills, demonstrated role evidence, and the role's stated location; exact years and nice-to-have skills remain useful but smaller signals. Missing experience lowers confidence without being treated as proof of a poor fit. Relative guidance can transfer weight between role evidence and experience without changing the rubric's 100-point total. When recruiter preferences exist, the final score is 70% technical fit and 30% recruiter-priority alignment. The model receives the final rank and score breakdown and explains them, but it cannot choose or recompute the ranking."
+1. Select **Data Analyst**.
+2. Run the default rubric and point out that the role's Dubai location already affects technical fit.
+3. Open the first two candidates and compare score with evidence confidence.
+4. Show matched requirements, gaps, and the three questions.
+5. Add: “Prioritize candidates available immediately and have to be from Dubai.”
+6. Run it again and show that Dubai is required while availability is preferred.
 
-Show these folders:
+Say: “The UI makes the interpretation visible. The recruiter can change either criterion between preferred and required instead of trusting a hidden model decision.”
 
-- `server/src/controllers`
-- `server/src/services`
-- `server/src/repositories`
-- `server/src/infrastructure`
+## 1:50–2:35 · Complete the workflow
 
-"I use constructor injection with TypeDI, but container lookup is limited to the composition root. This keeps services independently testable."
+Select one or two candidates. Point out that nothing is selected automatically. Choose **Approve & create brief**, then show the Markdown preview, copy action, and download action.
 
-## 3:20-4:20 - Reliability and messy data
+“This is the handoff artifact the recruiter can edit and send to the hiring manager.”
 
-"The supplied dataset includes missing records, invalid experience, reversed education dates, inconsistent locations, and duplicate profiles. I preserve uncertainty as data-quality notes and lower evidence confidence rather than making facts up. OpenAI configuration is required, and provider failures are explicit so the system never silently changes embedding or explanation behavior."
+## 2:35–3:35 · Explain the matching system
 
-## 4:20-5:20 - Evaluation and production direction
+Show the README architecture diagram and score table.
 
-"At scale I would build a multi-rater recruiter judgment set, measure NDCG and precision at five, audit evidence precision and counterfactual stability, and run a staged A/B test on shortlist acceptance and recruiter time saved. Recruiter overrides become evaluation data, not unchecked online self-training."
+“OpenAI embeds the role query, and pgvector retrieves relevant profiles. Deterministic code then scores required skills, role evidence, experience, nice-to-have skills, and the location already present in the role data. With recruiter preferences, the final score is 70% technical fit and 30% preference alignment. Explicit constraints filter candidates.”
 
-Close by showing `docs/PROMPTS.md`, the passing tests, and the Railway service layout in the README.
+“The model receives the completed rank and evidence to write the explanation. It cannot choose or recompute the ranking.”
+
+Briefly show `server/src/controllers`, `services`, `repositories`, and `infrastructure`. Mention that TypeDI uses constructor injection and container lookup is kept at the composition root.
+
+## 3:35–4:15 · Discuss messy data and safety
+
+“The dataset contains missing values and duplicates. I preserve unknowns, attach data-quality issues, and calculate evidence confidence separately from match score. Exact duplicates are grouped, leaving 110 unique profiles from the 120 rows.”
+
+“Candidate text is untrusted evidence. Structured Outputs and a sanitizer enforce the explanation shape, and OpenAI failures remain explicit rather than silently switching behavior.”
+
+## 4:15–4:50 · Explain evaluation at scale
+
+“I would build a multi-rater recruiter judgment set and track Precision@5, NDCG@5, and evidence precision. I would add contrast tests for soft versus hard guidance, evaluate relevant slices and counterfactual stability, then run a staged rollout measuring shortlist acceptance, recruiter time saved, reorders, and hiring-manager acceptance.”
+
+## 4:50–5:00 · Close
+
+Show the passing tests and documentation links.
+
+“The key product choice is that AI handles language and explanation, while the consequential ranking remains inspectable and under recruiter control.”
