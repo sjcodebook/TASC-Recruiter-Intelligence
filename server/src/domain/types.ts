@@ -37,10 +37,23 @@ export type Candidate = {
   duplicateIds?: string[];
 };
 
+export type GuidanceMode = "required" | "preferred";
+
+export type GuidanceCriterion<T> = {
+  value: T;
+  mode: GuidanceMode;
+  sourceText: string;
+};
+
+export type GuidanceOverrides = {
+  locationMode?: GuidanceMode;
+  availabilityMode?: GuidanceMode;
+};
+
 export type Guidance = {
   summary: string;
-  maxNoticeDays: number | null;
-  requiredLocation: string | null;
+  location: GuidanceCriterion<string> | null;
+  availability: GuidanceCriterion<number> | null;
   priorityTerms: string[];
   deprioritizedTerms: string[];
   experienceWeightDelta: number;
@@ -52,16 +65,19 @@ export type ScoreBreakdown = {
   evidence: number;
   experience: number;
   preferredSkills: number;
-  logistics: number;
+  roleLocation: number;
   recruiterGuidance: number;
 };
 
 export type RankedCandidate = Candidate & {
   rank: number;
   score: number;
+  roleFitScore: number;
+  preferenceScore: number | null;
   confidence: number;
   fitBand: "Strong" | "Promising" | "Stretch";
   eligible: boolean;
+  qualified: boolean;
   matchedRequiredSkills: string[];
   missingRequiredSkills: string[];
   matchedPreferredSkills: string[];
@@ -82,5 +98,6 @@ export type MatchResponse = {
   duplicatesHidden: number;
   requestedLimit: number;
   eligibleCount: number;
+  qualifiedCount: number;
   appliedConstraints: string[];
 };

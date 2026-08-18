@@ -577,6 +577,68 @@ button {
   font-weight: 650;
 }
 
+.rubric-copy {
+  min-width: 0;
+}
+
+.rubric-copy > strong {
+  display: block;
+}
+
+.criterion-controls {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.criterion-control {
+  min-height: 29px;
+  border: 1px solid var(--line-strong);
+  padding: 4px 5px 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.criterion-control > span {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.criterion-control b {
+  padding: 2px 5px;
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.criterion-control.required {
+  border-color: var(--accent-dark);
+}
+
+.criterion-control.required b {
+  background: var(--accent-pale);
+  color: var(--accent-dark);
+}
+
+.criterion-control:hover:not(:disabled) {
+  background: rgba(251, 250, 246, 0.68);
+}
+
+.criterion-control:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
 .interpreted-guidance i {
   color: var(--ink-soft);
   font-style: normal;
@@ -591,6 +653,30 @@ button {
 .constraint-summary strong,
 .constraint-summary span {
   display: block;
+}
+
+.no-qualified-results {
+  min-height: 260px;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.no-qualified-results strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 23px;
+  font-weight: 500;
+}
+
+.no-qualified-results span {
+  max-width: 390px;
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .constraint-summary strong {
@@ -874,6 +960,31 @@ button {
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.score-axis {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line-strong);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.score-axis > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.score-axis span {
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.score-axis strong {
+  font-size: 13px;
+  font-weight: 750;
 }
 
 .inspector-section {
@@ -1220,6 +1331,7 @@ button {
 
   .interpreted-guidance {
     grid-template-columns: 52px 1fr;
+    align-items: start;
   }
 
   .interpreted-guidance i {

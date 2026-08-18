@@ -3,7 +3,11 @@ import { z } from "zod";
 export const MatchRequestSchema = z.object({
   roleId: z.string().min(1),
   guidance: z.string().trim().max(800).default(""),
-  limit: z.number().int().min(1).max(10).default(5)
+  limit: z.number().int().min(1).max(10).default(5),
+  guidanceOverrides: z.object({
+    locationMode: z.enum(["required", "preferred"]).optional(),
+    availabilityMode: z.enum(["required", "preferred"]).optional()
+  }).default({})
 });
 
 export const ApproveRequestSchema = z.object({
@@ -15,10 +19,24 @@ export const ApproveRequestSchema = z.object({
 
 export const RunIdSchema = z.uuid();
 
+const GuidanceModeSchema = z.enum(["required", "preferred"]);
+
+const LocationCriterionSchema = z.object({
+  value: z.string().min(1),
+  mode: GuidanceModeSchema,
+  sourceText: z.string()
+});
+
+const AvailabilityCriterionSchema = z.object({
+  value: z.number().int().nonnegative(),
+  mode: GuidanceModeSchema,
+  sourceText: z.string()
+});
+
 export const GuidanceSchema = z.object({
   summary: z.string(),
-  maxNoticeDays: z.number().int().nonnegative().nullable(),
-  requiredLocation: z.string().nullable(),
+  location: LocationCriterionSchema.nullable(),
+  availability: AvailabilityCriterionSchema.nullable(),
   priorityTerms: z.array(z.string()).max(8),
   deprioritizedTerms: z.array(z.string()).max(8),
   experienceWeightDelta: z.number().min(-10).max(10)

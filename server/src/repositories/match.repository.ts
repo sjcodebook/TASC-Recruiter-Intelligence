@@ -17,6 +17,8 @@ type BriefRow = {
     gaps: string[];
     clarifyingQuestions: string[];
     matchedRequiredSkills: string[];
+    roleFitScore?: number;
+    preferenceScore?: number | null;
   };
 };
 
@@ -54,7 +56,9 @@ export class MatchRepository {
               whyFit: candidate.whyFit,
               gaps: candidate.gaps,
               clarifyingQuestions: candidate.clarifyingQuestions,
-              matchedRequiredSkills: candidate.matchedRequiredSkills
+              matchedRequiredSkills: candidate.matchedRequiredSkills,
+              roleFitScore: candidate.roleFitScore,
+              preferenceScore: candidate.preferenceScore
             })
           ]
         );
@@ -101,6 +105,10 @@ export class MatchRepository {
         .join("\n");
       return `## ${index + 1}. ${row.candidate_id} - ${row.headline}\n\n` +
         `**Match score:** ${Number(row.score).toFixed(1)}/100  \n` +
+        `**Technical role fit:** ${Number(row.explanation.roleFitScore ?? row.score).toFixed(1)}/100  \n` +
+        (row.explanation.preferenceScore === null || row.explanation.preferenceScore === undefined
+          ? ""
+          : `**Recruiter priorities:** ${Number(row.explanation.preferenceScore).toFixed(1)}/100  \n`) +
         `**Evidence confidence:** ${Math.round(Number(row.confidence))}%  \n` +
         `**Location:** ${row.location ?? "Not provided"}  \n` +
         `**Availability:** ${row.notice_period ?? "Not provided"}\n\n` +

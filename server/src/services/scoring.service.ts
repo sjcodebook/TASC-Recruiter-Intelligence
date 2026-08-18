@@ -13,6 +13,21 @@ function round(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+export function availabilityPreferenceScore(noticeDays: number | null, targetDays: number): number {
+  if (noticeDays === null) return 15;
+  if (targetDays === 0) {
+    if (noticeDays === 0) return 100;
+    if (noticeDays <= 14) return 85;
+    if (noticeDays <= 30) return 65;
+    if (noticeDays <= 60) return 30;
+    return 0;
+  }
+  if (noticeDays <= targetDays) return 100;
+  if (noticeDays <= targetDays + 14) return 70;
+  if (noticeDays <= targetDays + 30) return 35;
+  return 0;
+}
+
 @Service([])
 export class ScoringService {
   score(candidate: Candidate, role: Role, guidance: Guidance): RankedCandidate {
@@ -21,20 +36,19 @@ export class ScoringService {
     const missingRequiredSkills = role.requiredSkills.filter((skill) => !matchedRequiredSkills.includes(skill));
     const matchedPreferredSkills = role.niceToHaveSkills.filter((skill) => termMatches(skill, searchable));
 
-    const requiredSkills = role.requiredSkills.length
-      ? 35 * (matchedRequiredSkills.length / role.requiredSkills.length)
-      : 35;
+    const requiredCoverage = role.requiredSkills.length
+      ? matchedRequiredSkills.length / role.requiredSkills.length
+      : 1;
+    const requiredSkills = 35 * requiredCoverage;
 
     const semantic = Math.max(0, Math.min(1, candidate.semanticSimilarity ?? 0));
     const roleTokens = tokens(`${role.title} ${role.department}`);
     const roleEvidenceTokens = tokens(`${candidate.headline} ${candidate.pastRoles}`);
     const roleOverlap = [...roleTokens].filter((token) => roleEvidenceTokens.has(token)).length;
     const roleEvidence = roleTokens.size ? roleOverlap / roleTokens.size : 0;
-    const evidence = 12 * semantic + 8 * Math.min(1, roleEvidence);
+    const evidence = 15 * semantic + 10 * Math.min(1, roleEvidence);
 
-    const experienceMax = Math.max(5, Math.min(25, 15 + guidance.experienceWeightDelta));
-    const guidanceMax = 25 - experienceMax;
-    let experienceFactor = 0.5;
+    let experienceFactor = 0.35;
     if (candidate.experienceYears !== null) {
       if (candidate.experienceYears >= role.experienceMin && candidate.experienceYears <= role.experienceMax) {
         experienceFactor = 1;
@@ -45,7 +59,7 @@ export class ScoringService {
         experienceFactor = Math.max(0.2, 1 - distance * 0.2);
       }
     }
-    const experience = experienceMax * experienceFactor;
+    const experience = 20 * experienceFactor;
     const preferredSkills = role.niceToHaveSkills.length
       ? 10 * (matchedPreferredSkills.length / role.niceToHaveSkills.length)
       : 10;
@@ -55,42 +69,61 @@ export class ScoringService {
     const sameCity = candidateLocation.includes(roleCity);
     const country = CITY_COUNTRY[roleCity];
     const sameCountry = Boolean(country && candidateLocation.includes(country));
-    const locationPoints = sameCity ? 5 : sameCountry ? 2.5 : 0;
-    const availabilityPoints = candidate.noticeDays === null
-      ? 2
-      : candidate.noticeDays === 0
-        ? 5
-        : candidate.noticeDays <= 30
-          ? 4
-          : candidate.noticeDays <= 60
-            ? 3
-            : 1.5;
-    const logistics = locationPoints + availabilityPoints;
+    const roleLocation = sameCity ? 10 : sameCountry ? 5 : 0;
 
-    const guidanceSearchable = `${searchable} ${candidate.noticeDays === 0 ? "immediate availability" : ""}`;
-    const matchedGuidance = guidance.priorityTerms.filter((term) => termMatches(term, guidanceSearchable));
-    const recruiterGuidance = guidance.priorityTerms.length
-      ? guidanceMax * (matchedGuidance.length / guidance.priorityTerms.length)
-      : guidanceMax;
-
-    const noticeEligible = guidance.maxNoticeDays === null
-      || (candidate.noticeDays !== null && candidate.noticeDays <= guidance.maxNoticeDays);
-    const locationEligible = !guidance.requiredLocation
-      || candidateLocation.includes(normalizeText(guidance.requiredLocation));
-    const eligible = noticeEligible && locationEligible;
-
-    const scoreBreakdown: ScoreBreakdown = {
+    const baseBreakdown = {
       requiredSkills: round(requiredSkills),
       evidence: round(evidence),
       experience: round(experience),
       preferredSkills: round(preferredSkills),
-      logistics: round(logistics),
-      recruiterGuidance: round(recruiterGuidance)
+      roleLocation: round(roleLocation)
+    };
+    const roleFitScore = round(Object.values(baseBreakdown).reduce((sum, value) => sum + value, 0));
+
+    const preferenceScores: number[] = [];
+    if (guidance.location?.mode === "preferred") {
+      const preferredLocation = normalizeText(guidance.location.value);
+      const preferredCountry = CITY_COUNTRY[preferredLocation];
+      preferenceScores.push(
+        candidateLocation.includes(preferredLocation)
+          ? 100
+          : preferredCountry && candidateLocation.includes(preferredCountry)
+            ? 50
+            : 0
+      );
+    }
+    if (guidance.availability?.mode === "preferred") {
+      preferenceScores.push(availabilityPreferenceScore(candidate.noticeDays, guidance.availability.value));
+    }
+    for (const term of guidance.priorityTerms) {
+      preferenceScores.push(termMatches(term, searchable) ? 100 : 0);
+    }
+    const preferenceScore = preferenceScores.length
+      ? round(preferenceScores.reduce((sum, value) => sum + value, 0) / preferenceScores.length)
+      : null;
+
+    const roleWeight = preferenceScore === null ? 1 : 0.7;
+    const preferenceWeight = preferenceScore === null ? 0 : 0.3;
+    const scoreBreakdown: ScoreBreakdown = {
+      requiredSkills: round(baseBreakdown.requiredSkills * roleWeight),
+      evidence: round(baseBreakdown.evidence * roleWeight),
+      experience: round(baseBreakdown.experience * roleWeight),
+      preferredSkills: round(baseBreakdown.preferredSkills * roleWeight),
+      roleLocation: round(baseBreakdown.roleLocation * roleWeight),
+      recruiterGuidance: round((preferenceScore ?? 0) * preferenceWeight)
     };
     const score = Math.max(
       0,
       Math.min(100, round(Object.values(scoreBreakdown).reduce((sum, value) => sum + value, 0)))
     );
+
+    const hardLocationEligible = guidance.location?.mode !== "required"
+      || candidateLocation.includes(normalizeText(guidance.location.value));
+    const hardAvailabilityEligible = guidance.availability?.mode !== "required"
+      || (candidate.noticeDays !== null && candidate.noticeDays <= guidance.availability.value);
+    const eligible = hardLocationEligible && hardAvailabilityEligible;
+    const qualified = requiredCoverage >= 0.5 && roleFitScore >= 45;
+
     const confidencePenalty = candidate.dataQuality.reduce(
       (sum, issue) => sum + (issue.severity === "high" ? 18 : issue.severity === "medium" ? 9 : 4),
       0
@@ -100,20 +133,31 @@ export class ScoringService {
       ...missingRequiredSkills.map((skill) => `${skill} is not evidenced in the supplied profile.`),
       ...(candidate.experienceYears === null ? ["Years of experience could not be verified."] : []),
       ...(!sameCity ? [`Location alignment with ${role.location} should be confirmed.`] : []),
-      ...(candidate.noticeDays === null ? ["Availability needs confirmation."] : [])
+      ...(candidate.noticeDays === null ? ["Availability needs confirmation."] : []),
+      ...(!qualified ? ["The profile is below the minimum role-relevance threshold."] : [])
     ].slice(0, 4);
     if (gaps.length === 0) gaps.push("Validate the depth and recency of the strongest matched skills.");
 
-    const whyFit = this.buildWhyFit(candidate, role, matchedRequiredSkills, matchedPreferredSkills);
+    const whyFit = this.buildWhyFit(
+      candidate,
+      role,
+      matchedRequiredSkills,
+      matchedPreferredSkills,
+      roleFitScore,
+      preferenceScore
+    );
     const clarifyingQuestions = this.buildQuestions(candidate, role, missingRequiredSkills, sameCity);
 
     return {
       ...candidate,
       rank: 0,
       score,
+      roleFitScore,
+      preferenceScore,
       confidence,
       fitBand: score >= 75 ? "Strong" : score >= 60 ? "Promising" : "Stretch",
       eligible,
+      qualified,
       matchedRequiredSkills,
       missingRequiredSkills,
       matchedPreferredSkills,
@@ -128,7 +172,9 @@ export class ScoringService {
     candidate: Candidate,
     role: Role,
     required: string[],
-    preferred: string[]
+    preferred: string[],
+    roleFitScore: number,
+    preferenceScore: number | null
   ): string {
     const requiredText = required.length
       ? `The profile shows evidence for ${required.slice(0, 3).join(", ")}`
@@ -137,7 +183,10 @@ export class ScoringService {
       ? "experience duration needs verification"
       : `${candidate.experienceYears} years of reported experience is available for review`;
     const preferredText = preferred.length ? ` It also shows ${preferred.slice(0, 2).join(" and ")}.` : "";
-    return `${requiredText}, and ${experienceText}, making this a defensible ${role.title} conversation.${preferredText}`;
+    const priorityText = preferenceScore === null
+      ? ""
+      : ` Recruiter-priority alignment is ${preferenceScore.toFixed(1)}/100, alongside a ${roleFitScore.toFixed(1)}/100 technical role fit.`;
+    return `${requiredText}, and ${experienceText}, making this a defensible ${role.title} conversation.${preferredText}${priorityText}`;
   }
 
   private buildQuestions(candidate: Candidate, role: Role, missing: string[], sameCity: boolean): string[] {

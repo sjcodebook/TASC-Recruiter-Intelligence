@@ -2,7 +2,15 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import type { MatchResponse, Meta, RankedCandidate, Role } from "@/lib/types";
+import type {
+  GuidanceMode,
+  GuidanceOverrides,
+  Guidance,
+  MatchResponse,
+  Meta,
+  RankedCandidate,
+  Role
+} from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -17,8 +25,8 @@ const BREAKDOWN_LABELS: Record<string, string> = {
   evidence: "Role evidence",
   experience: "Experience",
   preferredSkills: "Preferred skills",
-  logistics: "Location & notice",
-  recruiterGuidance: "Your guidance"
+  roleLocation: "Role location",
+  recruiterGuidance: "Recruiter priorities"
 };
 
 function formatError(error: unknown): string {
@@ -33,11 +41,53 @@ function formatScore(value: number): string {
   return value.toFixed(1);
 }
 
+function overrideSignature(overrides: GuidanceOverrides): string {
+  return JSON.stringify({
+    locationMode: overrides.locationMode ?? null,
+    availabilityMode: overrides.availabilityMode ?? null
+  });
+}
+
+function availabilityLabel(days: number): string {
+  return days === 0 ? "Immediate availability" : `Available within ${days} days`;
+}
+
+function displayedGuidanceSummary(guidance: Guidance, overrides: GuidanceOverrides): string {
+  const required: string[] = [];
+  const preferred: string[] = [];
+  const locationMode = overrides.locationMode ?? guidance.location?.mode;
+  const availabilityMode = overrides.availabilityMode ?? guidance.availability?.mode;
+
+  if (guidance.location && locationMode) {
+    (locationMode === "required" ? required : preferred).push(
+      `${guidance.location.value}-based candidates`
+    );
+  }
+  if (guidance.availability && availabilityMode) {
+    (availabilityMode === "required" ? required : preferred).push(
+      guidance.availability.value === 0
+        ? "immediate availability"
+        : `availability within ${guidance.availability.value} days`
+    );
+  }
+  preferred.push(...guidance.priorityTerms);
+
+  const parts = [
+    required.length ? `Require ${required.join(" and ")}` : null,
+    preferred.length ? `Prefer ${preferred.join(", ")}` : null,
+    guidance.experienceWeightDelta < 0 ? "reduce emphasis on years of experience" : null,
+    guidance.experienceWeightDelta > 0 ? "increase emphasis on years of experience" : null
+  ].filter((part): part is string => Boolean(part));
+
+  return parts.length ? `${parts.join("; ")}.` : "Default role rubric";
+}
+
 export default function Home() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [roleId, setRoleId] = useState("R004");
   const [guidance, setGuidance] = useState("");
+  const [guidanceOverrides, setGuidanceOverrides] = useState<GuidanceOverrides>({});
   const [result, setResult] = useState<MatchResponse | null>(null);
   const [activeCandidateId, setActiveCandidateId] = useState<string | null>(null);
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
@@ -45,7 +95,11 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [markdown, setMarkdown] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [lastRunInput, setLastRunInput] = useState<{ roleId: string; guidance: string } | null>(null);
+  const [lastRunInput, setLastRunInput] = useState<{
+    roleId: string;
+    guidance: string;
+    overrides: string;
+  } | null>(null);
   const approveButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -82,7 +136,11 @@ export default function Home() {
   const resultsAreStale = Boolean(
     result
     && lastRunInput
-    && (lastRunInput.roleId !== roleId || lastRunInput.guidance !== normalizeGuidance(guidance))
+    && (
+      lastRunInput.roleId !== roleId
+      || lastRunInput.guidance !== normalizeGuidance(guidance)
+      || lastRunInput.overrides !== overrideSignature(guidanceOverrides)
+    )
   );
 
   useEffect(() => {
@@ -93,7 +151,7 @@ export default function Home() {
 
   async function runMatch() {
     if (!roleId) return;
-    const requestInput = { roleId, guidance };
+    const requestInput = { roleId, guidance, guidanceOverrides };
     setLoading(true);
     setError(null);
     setMarkdown(null);
@@ -106,10 +164,20 @@ export default function Home() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Matching failed.");
       const nextResult = payload as MatchResponse;
+      const resolvedOverrides: GuidanceOverrides = {
+        ...(nextResult.guidance.location
+          ? { locationMode: nextResult.guidance.location.mode }
+          : {}),
+        ...(nextResult.guidance.availability
+          ? { availabilityMode: nextResult.guidance.availability.mode }
+          : {})
+      };
       setResult(nextResult);
+      setGuidanceOverrides(resolvedOverrides);
       setLastRunInput({
         roleId: requestInput.roleId,
-        guidance: normalizeGuidance(requestInput.guidance)
+        guidance: normalizeGuidance(requestInput.guidance),
+        overrides: overrideSignature(resolvedOverrides)
       });
       setActiveCandidateId(nextResult.candidates[0]?.candidateId ?? null);
       setSelectedCandidateIds(nextResult.candidates[0] ? [nextResult.candidates[0].candidateId] : []);
@@ -197,6 +265,7 @@ export default function Home() {
               value={roleId}
               onChange={(event) => {
                 setRoleId(event.target.value);
+                setGuidanceOverrides({});
                 setResult(null);
                 setLastRunInput(null);
                 setActiveCandidateId(null);
@@ -233,13 +302,25 @@ export default function Home() {
             <textarea
               id="guidance"
               value={guidance}
-              onChange={(event) => setGuidance(event.target.value)}
+              onChange={(event) => {
+                setGuidance(event.target.value);
+                setGuidanceOverrides({});
+              }}
               placeholder="Tell the agent what matters for this search…"
               maxLength={800}
             />
             <div className="example-prompts">
               {GUIDANCE_EXAMPLES.map((example) => (
-                <button key={example} type="button" onClick={() => setGuidance(example)}>{example}</button>
+                <button
+                  key={example}
+                  type="button"
+                  onClick={() => {
+                    setGuidance(example);
+                    setGuidanceOverrides({});
+                  }}
+                >
+                  {example}
+                </button>
               ))}
             </div>
           </div>
@@ -314,13 +395,49 @@ export default function Home() {
                 >
                   <div className="interpreted-guidance">
                     <span>Rubric</span>
-                    <strong>{result.guidance.summary}</strong>
+                    <div className="rubric-copy">
+                      <strong>{displayedGuidanceSummary(result.guidance, guidanceOverrides)}</strong>
+                      {(result.guidance.location || result.guidance.availability) && (
+                        <div className="criterion-controls" aria-label="Recruiter criterion importance">
+                          {result.guidance.location && (
+                            <CriterionControl
+                              label={result.guidance.location.value}
+                              mode={guidanceOverrides.locationMode ?? result.guidance.location.mode}
+                              disabled={loading}
+                              onChange={(mode) => setGuidanceOverrides((current) => ({
+                                ...current,
+                                locationMode: mode
+                              }))}
+                            />
+                          )}
+                          {result.guidance.availability && (
+                            <CriterionControl
+                              label={availabilityLabel(result.guidance.availability.value)}
+                              mode={guidanceOverrides.availabilityMode ?? result.guidance.availability.mode}
+                              disabled={loading}
+                              onChange={(mode) => setGuidanceOverrides((current) => ({
+                                ...current,
+                                availabilityMode: mode
+                              }))}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <i>{result.guidance.interpretedBy === "openai" ? "AI interpreted" : "Rule interpreted"}</i>
                   </div>
-                  {result.appliedConstraints.length > 0 && result.candidates.length < result.requestedLimit && (
+                  {result.candidates.length < result.requestedLimit && (
                     <div className="constraint-summary" role="status">
-                      <strong>{result.candidates.length} candidates met every mandatory requirement.</strong>
-                      <span>{result.appliedConstraints.join(" · ")}</span>
+                      <strong>{result.candidates.length} candidates met the mandatory and role-fit thresholds.</strong>
+                      <span>
+                        {[...result.appliedConstraints, "Minimum role relevance"].join(" · ")}
+                      </span>
+                    </div>
+                  )}
+                  {result.candidates.length === 0 && (
+                    <div className="no-qualified-results">
+                      <strong>No defensible shortlist for this rubric</strong>
+                      <span>Relax a required criterion or review the source profiles, then run the match again.</span>
                     </div>
                   )}
                   {result.candidates.map((candidate) => (
@@ -379,6 +496,21 @@ export default function Home() {
                 <div className="score-lockup">
                   <div><strong>{formatScore(activeCandidate.score)}</strong><span>/100 match</span></div>
                   <div><strong>{activeCandidate.confidence}%</strong><span>evidence confidence</span></div>
+                </div>
+
+                <div className="score-axis" aria-label="Score axes">
+                  <div>
+                    <span>Technical role fit</span>
+                    <strong>{formatScore(activeCandidate.roleFitScore)}</strong>
+                  </div>
+                  <div>
+                    <span>Recruiter priorities</span>
+                    <strong>
+                      {activeCandidate.preferenceScore === null
+                        ? "Not applied"
+                        : formatScore(activeCandidate.preferenceScore)}
+                    </strong>
+                  </div>
                 </div>
 
                 <section className="inspector-section">
@@ -447,6 +579,32 @@ export default function Home() {
         )}
       </AnimatePresence>
     </main>
+  );
+}
+
+function CriterionControl({
+  label,
+  mode,
+  disabled,
+  onChange
+}: {
+  label: string;
+  mode: GuidanceMode;
+  disabled: boolean;
+  onChange: (mode: GuidanceMode) => void;
+}) {
+  const nextMode: GuidanceMode = mode === "required" ? "preferred" : "required";
+  return (
+    <button
+      className={`criterion-control ${mode}`}
+      type="button"
+      disabled={disabled}
+      aria-label={`${label} is ${mode}. Change to ${nextMode}.`}
+      onClick={() => onChange(nextMode)}
+    >
+      <span>{label}</span>
+      <b>{mode}</b>
+    </button>
   );
 }
 
