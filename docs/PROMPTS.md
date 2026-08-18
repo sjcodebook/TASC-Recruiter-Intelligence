@@ -17,8 +17,10 @@ Convert recruiter guidance into structured matching criteria. Classify each
 location or availability criterion independently. Words such as must, only,
 required, have to, need to, or within mean required. Words such as prefer,
 prioritize, or value mean preferred. Do not let hard language in one clause make
-another clause required. Immediate availability is represented as 0 days. Keep
-priority terms short. Do not infer protected traits.
+another clause required. Immediate availability is represented as 0 days. Set
+experienceWeightDelta to -5 when the recruiter explicitly reduces emphasis on
+years of experience, +5 when they explicitly prioritize years of experience,
+and 0 otherwise. Keep priority terms short. Do not infer protected traits.
 ```
 
 Example user input:
@@ -35,12 +37,13 @@ Expected structured shape:
   "location": null,
   "availability": null,
   "priorityTerms": ["client-facing"],
-  "deprioritizedTerms": [],
   "experienceWeightDelta": -5
 }
 ```
 
 The deterministic parser also extracts explicit location and availability language before merging the model response. This is a constraint-safety layer, not an offline fallback. If OpenAI interpretation fails, the match request fails rather than switching modes.
+
+`experienceWeightDelta` shifts points between two technical-role-fit components while keeping the rubric normalized to 100 points. A value of `-5` moves five points from experience duration to qualitative role evidence; `+5` does the reverse.
 
 ## 2. Candidate explanation generator
 

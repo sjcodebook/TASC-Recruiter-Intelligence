@@ -72,6 +72,8 @@ The pipeline is hybrid rather than LLM-only:
 
 Without recruiter preferences, the technical role-fit score is the final score. When preferences exist, the final score is 70% technical role fit and 30% recruiter-priority alignment. Preferences change ranking, while hard eligibility gates are created only by explicit constraint language such as "must," "only," "required," or "within."
 
+The table shows the default weights. Relative guidance can shift five points between role evidence and experience while preserving a 100-point technical rubric. For example, "value client-facing experience over years of experience" moves five points from experience duration to role evidence and separately rewards direct client-facing evidence in the recruiter-priority score.
+
 This rubric is deliberately not a hiring decision. It is a review-order heuristic whose components are visible in the interface.
 
 ## Local setup

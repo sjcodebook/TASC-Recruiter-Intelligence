@@ -7,7 +7,6 @@ const service = new GuidanceService({
     location: null,
     availability: null,
     priorityTerms: [],
-    deprioritizedTerms: [],
     experienceWeightDelta: 0
   })
 } as never);
@@ -52,7 +51,6 @@ describe("local recruiter guidance interpretation", () => {
         location: { value: "dubai", mode: "required", sourceText: "from Dubai" },
         availability: { value: 0, mode: "preferred", sourceText: "available immediately" },
         priorityTerms: ["immediate availability", "Dubai-based", "e-commerce"],
-        deprioritizedTerms: [],
         experienceWeightDelta: 0,
         interpretedBy: "openai"
       })

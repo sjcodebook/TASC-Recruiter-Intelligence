@@ -16,7 +16,7 @@
 
 ## 1:40-3:20 - Explain the AI system
 
-"The system is hybrid. pgvector retrieves semantically relevant profiles, then a deterministic rubric ranks them. Technical role fit combines required skills, role evidence, experience, preferred skills, and role location. When recruiter preferences exist, the final score is 70% technical fit and 30% recruiter-priority alignment. The model interprets natural language and writes explanations, but it does not secretly choose the ranking."
+"The system is hybrid. pgvector retrieves semantically relevant profiles, then a deterministic rubric ranks them. Technical role fit combines required skills, role evidence, experience, preferred skills, and role location. Relative guidance can transfer weight between role evidence and experience without changing the rubric's 100-point total. When recruiter preferences exist, the final score is 70% technical fit and 30% recruiter-priority alignment. The model interprets natural language and writes explanations, but it does not secretly choose the ranking."
 
 Show these folders:
 

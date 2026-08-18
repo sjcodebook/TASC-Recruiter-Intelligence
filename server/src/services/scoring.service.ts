@@ -46,7 +46,11 @@ export class ScoringService {
     const roleEvidenceTokens = tokens(`${candidate.headline} ${candidate.pastRoles}`);
     const roleOverlap = [...roleTokens].filter((token) => roleEvidenceTokens.has(token)).length;
     const roleEvidence = roleTokens.size ? roleOverlap / roleTokens.size : 0;
-    const evidence = 15 * semantic + 10 * Math.min(1, roleEvidence);
+    const experienceWeight = 20 + guidance.experienceWeightDelta;
+    const evidenceWeight = 25 - guidance.experienceWeightDelta;
+    const evidence = evidenceWeight * (
+      0.6 * semantic + 0.4 * Math.min(1, roleEvidence)
+    );
 
     let experienceFactor = 0.35;
     if (candidate.experienceYears !== null) {
@@ -59,7 +63,7 @@ export class ScoringService {
         experienceFactor = Math.max(0.2, 1 - distance * 0.2);
       }
     }
-    const experience = 20 * experienceFactor;
+    const experience = experienceWeight * experienceFactor;
     const preferredSkills = role.niceToHaveSkills.length
       ? 10 * (matchedPreferredSkills.length / role.niceToHaveSkills.length)
       : 10;

@@ -19,7 +19,6 @@ const guidance: Guidance = {
   location: null,
   availability: null,
   priorityTerms: [],
-  deprioritizedTerms: [],
   experienceWeightDelta: 0,
   interpretedBy: "local"
 };
@@ -87,6 +86,35 @@ describe("hybrid candidate scoring", () => {
     expect(availabilityPreferenceScore(60, 0)).toBe(30);
     expect(availabilityPreferenceScore(90, 0)).toBe(0);
     expect(availabilityPreferenceScore(null, 0)).toBe(15);
+  });
+
+  it("transfers rubric weight between experience and role evidence", () => {
+    const profile = candidate({ experienceYears: 10, semanticSimilarity: 0.9 });
+    const defaultResult = new ScoringService().score(profile, role, guidance);
+    const evidenceFirstResult = new ScoringService().score(profile, role, {
+      ...guidance,
+      experienceWeightDelta: -5
+    });
+    const experienceFirstResult = new ScoringService().score(profile, role, {
+      ...guidance,
+      experienceWeightDelta: 5
+    });
+
+    expect(evidenceFirstResult.scoreBreakdown.experience)
+      .toBeLessThan(defaultResult.scoreBreakdown.experience);
+    expect(evidenceFirstResult.scoreBreakdown.evidence)
+      .toBeGreaterThan(defaultResult.scoreBreakdown.evidence);
+    expect(experienceFirstResult.scoreBreakdown.experience)
+      .toBeGreaterThan(defaultResult.scoreBreakdown.experience);
+    expect(experienceFirstResult.scoreBreakdown.evidence)
+      .toBeLessThan(defaultResult.scoreBreakdown.evidence);
+    expect(
+      evidenceFirstResult.scoreBreakdown.experience
+      + evidenceFirstResult.scoreBreakdown.evidence
+    ).toBeGreaterThan(
+      defaultResult.scoreBreakdown.experience
+      + defaultResult.scoreBreakdown.evidence
+    );
   });
 
   it("ranks the near-available relevant candidate above a stronger technical match with 90 days notice", () => {

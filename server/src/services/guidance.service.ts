@@ -140,7 +140,6 @@ export class GuidanceService {
       location,
       availability,
       priorityTerms,
-      deprioritizedTerms: [],
       experienceWeightDelta,
       interpretedBy: "local"
     });
@@ -152,7 +151,6 @@ export class GuidanceService {
       location: null,
       availability: null,
       priorityTerms: [],
-      deprioritizedTerms: [],
       experienceWeightDelta: 0,
       interpretedBy: "local"
     };

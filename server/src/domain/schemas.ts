@@ -38,8 +38,7 @@ export const GuidanceSchema = z.object({
   location: LocationCriterionSchema.nullable(),
   availability: AvailabilityCriterionSchema.nullable(),
   priorityTerms: z.array(z.string()).max(8),
-  deprioritizedTerms: z.array(z.string()).max(8),
-  experienceWeightDelta: z.number().min(-10).max(10)
+  experienceWeightDelta: z.union([z.literal(-5), z.literal(0), z.literal(5)])
 });
 
 export const ExplanationBatchSchema = z.object({

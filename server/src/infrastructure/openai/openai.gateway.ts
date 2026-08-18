@@ -34,7 +34,7 @@ export class OpenAIGateway {
         {
           role: "system",
           content:
-            "Convert recruiter guidance into structured matching criteria. Classify each location or availability criterion independently. Words such as must, only, required, have to, need to, or within mean required. Words such as prefer, prioritize, or value mean preferred. Do not let hard language in one clause make another clause required. Immediate availability is represented as 0 days. Keep priority terms short. Do not infer protected traits."
+            "Convert recruiter guidance into structured matching criteria. Classify each location or availability criterion independently. Words such as must, only, required, have to, need to, or within mean required. Words such as prefer, prioritize, or value mean preferred. Do not let hard language in one clause make another clause required. Immediate availability is represented as 0 days. Set experienceWeightDelta to -5 when the recruiter explicitly reduces emphasis on years of experience, +5 when they explicitly prioritize years of experience, and 0 otherwise. Keep priority terms short. Do not infer protected traits."
         },
         { role: "user", content: rawGuidance }
       ],

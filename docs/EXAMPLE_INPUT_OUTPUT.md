@@ -29,7 +29,6 @@ This example was generated from the supplied CSVs with OpenAI enabled.
     "sourceText": "Prioritize candidates available immediately"
   },
   "priorityTerms": [],
-  "deprioritizedTerms": [],
   "experienceWeightDelta": 0,
   "interpretedBy": "openai"
 }

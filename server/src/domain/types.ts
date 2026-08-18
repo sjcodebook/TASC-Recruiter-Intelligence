@@ -55,7 +55,6 @@ export type Guidance = {
   location: GuidanceCriterion<string> | null;
   availability: GuidanceCriterion<number> | null;
   priorityTerms: string[];
-  deprioritizedTerms: string[];
   experienceWeightDelta: number;
   interpretedBy: "openai" | "local";
 };
