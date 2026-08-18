@@ -411,13 +411,7 @@ export default function Home() {
         </div>
         <div className="system-status" aria-label="System status">
           <span className="status-dot live" />
-          <span>OpenAI reasoning</span>
-          <span className="status-separator">·</span>
-          <span>{meta?.candidateCount ?? "..."} profiles</span>
-          <span className="status-separator desktop-only">·</span>
-          <span className="desktop-only">
-            pgvector {meta?.pgvectorVersion ?? "..."}
-          </span>
+          <span>Total {meta?.candidateCount ?? "..."} profiles in DB</span>
         </div>
       </header>
 
