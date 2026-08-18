@@ -514,10 +514,6 @@ export default function Home() {
             </span>
             <span aria-hidden="true">→</span>
           </button>
-          <p className="model-note">
-            Scores stay deterministic. AI interprets guidance and writes
-            evidence-grounded briefs.
-          </p>
         </aside>
 
         <section className="results-pane">
@@ -705,7 +701,7 @@ export default function Home() {
             <div className="approval-bar">
               <div>
                 <strong>{selectedCandidateIds.length}</strong>
-                <span>selected for hiring manager</span>
+                <span>selected</span>
               </div>
               <button
                 ref={approveButtonRef}
