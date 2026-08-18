@@ -125,6 +125,19 @@ Structured Outputs require one explanation, at least one gap, and exactly three 
 
 No candidate is selected automatically after a match. The recruiter chooses candidates, the API verifies that every selected ID belongs to the persisted match run, and the approved IDs are recorded. The resulting Markdown contains scores, confidence, location, availability, reasoning, gaps, and interview questions in shortlist order.
 
+## 9. Latency without ranking changes
+
+The browser still makes one request and receives one complete match response. Performance work is limited to implementation details that preserve the same models, prompts, retrieval query, scoring, filtering, order, and explanation contract:
+
+- Exact completed searches use a 30-minute, 50-entry in-memory cache. The key includes all request fields, model and embedding configuration, the matching-engine version, and timestamps and counts from the current role and candidate data.
+- A cache hit receives a fresh run ID and is persisted as an independent run, so approvals never leak between searches.
+- Simultaneous identical requests share the same in-flight computation rather than making duplicate OpenAI calls.
+- Repeated recruiter guidance reuses the same completed structured interpretation before applying the requested overrides.
+- Stable prompt-cache keys help OpenAI reuse common prompt prefixes without changing prompt content.
+- The match run and all shortlisted result rows are inserted with one atomic SQL statement instead of one network round trip per candidate.
+
+The first unique search is still bounded mainly by OpenAI inference time. Repeated exact searches avoid those calls and are expected to complete much faster. Cache entries expire automatically and are invalidated when the role or candidate dataset changes.
+
 ## Known limits
 
 - The alias map is intentionally small and would need evaluation by role family.

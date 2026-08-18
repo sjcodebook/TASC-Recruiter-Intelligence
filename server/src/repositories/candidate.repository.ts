@@ -50,6 +50,28 @@ function mapCandidate(row: CandidateRow): Candidate {
 export class CandidateRepository {
   constructor(private readonly database: DatabaseService) {}
 
+  async dataVersion(): Promise<string> {
+    const result = await this.database.query<{
+      candidate_count: string;
+      candidate_updated_at: string | null;
+      role_count: string;
+      role_updated_at: string | null;
+    }>(
+      `SELECT
+        (SELECT COUNT(*)::text FROM candidates) AS candidate_count,
+        (SELECT MAX(updated_at)::text FROM candidates) AS candidate_updated_at,
+        (SELECT COUNT(*)::text FROM roles) AS role_count,
+        (SELECT MAX(updated_at)::text FROM roles) AS role_updated_at`
+    );
+    const row = result.rows[0];
+    return [
+      row?.candidate_count ?? "0",
+      row?.candidate_updated_at ?? "",
+      row?.role_count ?? "0",
+      row?.role_updated_at ?? ""
+    ].join(":");
+  }
+
   async findSemanticMatches(embedding: number[], limit = 80): Promise<Candidate[]> {
     const result = await this.database.query<CandidateRow>(
       `SELECT candidate_id, headline, skills, experience_years, past_roles,
@@ -137,4 +159,3 @@ export class CandidateRepository {
     };
   }
 }
-

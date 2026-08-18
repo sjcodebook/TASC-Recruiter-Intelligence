@@ -31,6 +31,7 @@ export class OpenAIGateway {
   async interpretGuidance(rawGuidance: string): Promise<Omit<Guidance, "interpretedBy">> {
     const response = await this.client.responses.parse({
       model: env.OPENAI_MODEL,
+      prompt_cache_key: "tasc-recruiter-guidance-v1",
       input: [
         {
           role: "system",
@@ -75,6 +76,7 @@ export class OpenAIGateway {
     }));
     const response = await this.client.responses.parse({
       model: env.OPENAI_MODEL,
+      prompt_cache_key: "tasc-candidate-explanations-v1",
       input: [
         {
           role: "system",

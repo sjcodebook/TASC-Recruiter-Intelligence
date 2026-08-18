@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { RankedCandidate } from "../src/domain/types.js";
-import { selectEligibleShortlist } from "../src/services/match.service.js";
+import { MatchService, matchCacheKey, selectEligibleShortlist } from "../src/services/match.service.js";
 
 function rankedCandidate(
   candidateId: string,
@@ -78,5 +78,82 @@ describe("hard-constraint shortlisting", () => {
     const shortlist = selectEligibleShortlist(ranked, 5);
 
     expect(shortlist.map((candidate) => candidate.candidateId)).toEqual(["C001", "C003"]);
+  });
+});
+
+describe("exact match result caching", () => {
+  it("uses the same key regardless of recruiter term override insertion order", () => {
+    const base = {
+      roleId: "R001",
+      guidance: "Must know SQL and Python",
+      limit: 5,
+      guidanceOverrides: { termModes: { SQL: "required", Python: "preferred" } }
+    } as const;
+    const reordered = {
+      ...base,
+      guidanceOverrides: { termModes: { Python: "preferred", SQL: "required" } }
+    } as const;
+
+    expect(matchCacheKey(base, "data-v1")).toBe(matchCacheKey(reordered, "data-v1"));
+    expect(matchCacheKey(base, "data-v1")).not.toBe(matchCacheKey(base, "data-v2"));
+  });
+
+  it("reuses a completed exact result while creating an independent persisted run", async () => {
+    const candidate = rankedCandidate("C001", 82, true);
+    const role = {
+      roleId: "R001",
+      title: "Data Analyst",
+      department: "Analytics",
+      requiredSkills: [],
+      niceToHaveSkills: [],
+      experienceMin: 2,
+      experienceMax: 4,
+      seniority: "Mid",
+      location: "Dubai"
+    };
+    const guidance = {
+      summary: "Default role rubric",
+      location: null,
+      availability: null,
+      terms: [],
+      experience: null,
+      experienceWeightDelta: 0,
+      interpretedBy: "local"
+    } as const;
+    const candidates = {
+      dataVersion: vi.fn().mockResolvedValue("data-v1"),
+      findSemanticMatches: vi.fn().mockResolvedValue([candidate])
+    };
+    const matches = { saveRun: vi.fn().mockResolvedValue(undefined) };
+    const roles = { findById: vi.fn().mockResolvedValue(role) };
+    const openai = {
+      embedMany: vi.fn().mockResolvedValue([[0.1, 0.2]]),
+      explainCandidates: vi.fn().mockResolvedValue(new Map([
+        ["C001", { whyFit: "Evidence-backed fit.", gaps: ["Validate scope."], clarifyingQuestions: ["Q1?", "Q2?", "Q3?"] }]
+      ]))
+    };
+    const guidanceService = { interpret: vi.fn().mockResolvedValue(guidance) };
+    const scoring = { score: vi.fn().mockReturnValue(candidate) };
+    const service = new MatchService(
+      candidates as never,
+      matches as never,
+      roles as never,
+      openai as never,
+      guidanceService as never,
+      scoring as never
+    );
+    const input = { roleId: "R001", guidance: "", limit: 5, guidanceOverrides: {} };
+
+    const first = await service.run(input);
+    const second = await service.run(input);
+
+    expect(openai.embedMany).toHaveBeenCalledTimes(1);
+    expect(openai.explainCandidates).toHaveBeenCalledTimes(1);
+    expect(guidanceService.interpret).toHaveBeenCalledTimes(1);
+    expect(candidates.findSemanticMatches).toHaveBeenCalledTimes(1);
+    expect(matches.saveRun).toHaveBeenCalledTimes(2);
+    expect(second.runId).not.toBe(first.runId);
+    expect(second.candidates).toEqual(first.candidates);
+    expect(matches.saveRun.mock.calls[1][0].rawGuidance).toBe("");
   });
 });

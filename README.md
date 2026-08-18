@@ -45,6 +45,8 @@ flowchart LR
 
 Services use constructor injection. `Container.get` is limited to composition roots such as application startup and database seeding.
 
+Matching still returns one complete response, but the API avoids repeating work. Exact searches are cached for 30 minutes using the role, guidance, overrides, limit, model configuration, matching-engine version, and current dataset version. A cache hit creates a new persisted run, so approval state remains isolated. Concurrent identical searches share one computation, repeated guidance reuses its structured interpretation, and each run plus all result rows is written in one atomic database statement. None of these paths changes retrieval, scoring, ranking, prompts, models, or the rendered interface.
+
 ## Matching in brief
 
 With no recruiter guidance, the technical role-fit score is the final score:
@@ -132,4 +134,4 @@ In a staged rollout, I would measure shortlist acceptance, time to first qualifi
 - [Detailed matching logic](docs/MATCHING_SYSTEM.md)
 - [Five-minute Loom outline](docs/LOOM_SCRIPT.md)
 
-Current verification: 37 API tests pass, both production builds pass, and the core flow has been exercised in a real browser against Postgres, pgvector, and OpenAI.
+Current verification: 41 API tests pass, both production builds pass, and the core flow has been exercised in a real browser against Postgres, pgvector, and OpenAI.

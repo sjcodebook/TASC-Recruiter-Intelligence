@@ -41,6 +41,8 @@ Briefly show `server/src/controllers`, `services`, `repositories`, and `infrastr
 
 “Candidate text is untrusted evidence. Structured Outputs and a sanitizer enforce the explanation shape, and OpenAI failures remain explicit rather than silently switching behavior.”
 
+“For latency, I kept the user flow and matching contract unchanged. Exact completed searches are cached against the full input and dataset version, concurrent duplicates share one computation, and a run plus its results is persisted in one atomic database call. A cache hit still gets its own run ID, so recruiter approvals remain isolated.”
+
 ## 4:15–4:50 · Explain evaluation at scale
 
 “I would build a multi-rater recruiter judgment set and track Precision@5, NDCG@5, and evidence precision. I would add contrast tests for soft versus hard guidance, evaluate relevant slices and counterfactual stability, then run a staged rollout measuring shortlist acceptance, recruiter time saved, reorders, and hiring-manager acceptance.”

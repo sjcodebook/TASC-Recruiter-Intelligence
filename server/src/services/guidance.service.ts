@@ -10,6 +10,7 @@ import type {
   TermGuidanceCriterion
 } from "../domain/types.js";
 import { normalizeText } from "../utils/text.js";
+import { TtlCache } from "../utils/ttl-cache.js";
 
 const LOCATIONS = [
   "abu dhabi",
@@ -221,11 +222,16 @@ function normalizedAiTerms(terms: TermGuidanceCriterion[]): TermGuidanceCriterio
 
 @Service([OpenAIGateway])
 export class GuidanceService {
+  private readonly interpretationCache = new TtlCache<Guidance>(50, 30 * 60 * 1000);
+
   constructor(private readonly openai: OpenAIGateway) {}
 
   async interpret(rawGuidance: string, overrides: GuidanceOverrides = {}): Promise<Guidance> {
     const trimmed = rawGuidance.trim();
     if (!trimmed) return this.applyOverrides(this.defaultGuidance(), overrides);
+
+    const cached = this.interpretationCache.get(trimmed);
+    if (cached) return this.applyOverrides(structuredClone(cached), overrides);
 
     const local = this.localInterpretation(trimmed);
     const aiResult = await this.openai.interpretGuidance(trimmed);
@@ -247,7 +253,9 @@ export class GuidanceService {
       experienceWeightDelta: local.experienceWeightDelta || aiResult.experienceWeightDelta,
       interpretedBy: "hybrid"
     };
-    return this.applyOverrides(this.withSummary(merged), overrides);
+    const interpreted = this.withSummary(merged);
+    this.interpretationCache.set(trimmed, structuredClone(interpreted));
+    return this.applyOverrides(interpreted, overrides);
   }
 
   localInterpretation(rawGuidance: string): Guidance {

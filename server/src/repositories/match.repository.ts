@@ -34,36 +34,60 @@ export class MatchRepository {
     aiMode: "openai";
     candidates: RankedCandidate[];
   }): Promise<void> {
-    await this.database.transaction(async (client) => {
-      await client.query(
+    const runValues: unknown[] = [
+      input.runId,
+      input.roleId,
+      input.rawGuidance,
+      JSON.stringify(input.guidance),
+      input.aiMode
+    ];
+    if (input.candidates.length === 0) {
+      await this.database.query(
         `INSERT INTO match_runs (run_id, role_id, raw_guidance, interpreted_guidance, ai_mode)
          VALUES ($1,$2,$3,$4::jsonb,$5)`,
-        [input.runId, input.roleId, input.rawGuidance, JSON.stringify(input.guidance), input.aiMode]
+        runValues
       );
-      for (const candidate of input.candidates) {
-        await client.query(
-          `INSERT INTO match_results (
-            run_id, candidate_id, rank, score, confidence, score_breakdown, explanation
-          ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb)`,
-          [
-            input.runId,
-            candidate.candidateId,
-            candidate.rank,
-            candidate.score,
-            candidate.confidence,
-            JSON.stringify(candidate.scoreBreakdown),
-            JSON.stringify({
-              whyFit: candidate.whyFit,
-              gaps: candidate.gaps,
-              clarifyingQuestions: candidate.clarifyingQuestions,
-              matchedRequiredSkills: candidate.matchedRequiredSkills,
-              roleFitScore: candidate.roleFitScore,
-              preferenceScore: candidate.preferenceScore
-            })
-          ]
-        );
-      }
+      return;
+    }
+
+    const values = [...runValues];
+    const rows = input.candidates.map((candidate, index) => {
+      const offset = 5 + index * 6;
+      values.push(
+        candidate.candidateId,
+        candidate.rank,
+        candidate.score,
+        candidate.confidence,
+        JSON.stringify(candidate.scoreBreakdown),
+        JSON.stringify({
+          whyFit: candidate.whyFit,
+          gaps: candidate.gaps,
+          clarifyingQuestions: candidate.clarifyingQuestions,
+          matchedRequiredSkills: candidate.matchedRequiredSkills,
+          roleFitScore: candidate.roleFitScore,
+          preferenceScore: candidate.preferenceScore
+        })
+      );
+      return `($${offset + 1}::text,$${offset + 2}::integer,$${offset + 3}::numeric,$${offset + 4}::numeric,$${offset + 5}::jsonb,$${offset + 6}::jsonb)`;
     });
+
+    await this.database.query(
+      `WITH inserted_run AS (
+        INSERT INTO match_runs (run_id, role_id, raw_guidance, interpreted_guidance, ai_mode)
+        VALUES ($1,$2,$3,$4::jsonb,$5)
+        RETURNING run_id
+      )
+      INSERT INTO match_results (
+        run_id, candidate_id, rank, score, confidence, score_breakdown, explanation
+      )
+      SELECT inserted_run.run_id, result.candidate_id, result.rank, result.score,
+        result.confidence, result.score_breakdown, result.explanation
+      FROM inserted_run
+      CROSS JOIN (VALUES ${rows.join(",")}) AS result(
+        candidate_id, rank, score, confidence, score_breakdown, explanation
+      )`,
+      values
+    );
   }
 
   async approveAndBuildMarkdown(runId: string, candidateIds: string[]): Promise<string> {
