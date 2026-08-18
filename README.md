@@ -57,7 +57,7 @@ With no recruiter guidance, the technical role-fit score is the final score:
 | Nice-to-have skills | 5 |
 | Role location | 15 |
 
-When guidance contains preferences, the final score becomes 70% technical role fit and 30% recruiter-priority alignment. Explicit words such as “must,” “required,” “only,” or “within” create eligibility constraints instead of preferences.
+When guidance contains preferences, the final score becomes 70% technical role fit and 30% recruiter-priority alignment. Required criteria filter candidates before ranking. In this recruiter context, “should be in Dubai” is required, while “ideally should be in Dubai” remains preferred because explicit soft language takes precedence. The same contract supports availability, required or excluded evidence, numeric experience, and alternative or excluded locations.
 
 Candidates must also meet a small relevance floor: at least half of the required skills and a technical role-fit score of 45. This prevents a strong location or preference signal from promoting an unrelated profile.
 
@@ -130,4 +130,4 @@ In a staged rollout, I would measure shortlist acceptance, time to first qualifi
 - [Detailed matching logic](docs/MATCHING_SYSTEM.md)
 - [Five-minute Loom outline](docs/LOOM_SCRIPT.md)
 
-Current verification: 25 API tests pass, both production builds pass, and the core flow has been exercised in a real browser against Postgres, pgvector, and OpenAI.
+Current verification: 36 API tests pass, both production builds pass, and the core flow has been exercised in a real browser against Postgres, pgvector, and OpenAI.

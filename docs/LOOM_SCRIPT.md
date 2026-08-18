@@ -17,7 +17,7 @@ Briefly show the role list and the supplied dataset size.
 5. Add: “Prioritize candidates available immediately and have to be from Dubai.”
 6. Run it again and show that Dubai is required while availability is preferred.
 
-Say: “The UI makes the interpretation visible. The recruiter can change either criterion between preferred and required instead of trusting a hidden model decision.”
+Say: “The UI makes the interpretation visible. OpenAI extracts the values, deterministic rules resolve consequential wording, and the recruiter can change any criterion between preferred and required. For example, ‘should be in Dubai’ is required, but ‘ideally should be in Dubai’ is preferred.”
 
 ## 1:50–2:35 · Complete the workflow
 
@@ -29,7 +29,7 @@ Select one or two candidates. Point out that nothing is selected automatically. 
 
 Show the README architecture diagram and score table.
 
-“OpenAI embeds the role query, and pgvector retrieves relevant profiles. Deterministic code then scores required skills, role evidence, experience, nice-to-have skills, and the location already present in the role data. With recruiter preferences, the final score is 70% technical fit and 30% preference alignment. Explicit constraints filter candidates.”
+“OpenAI embeds the role query, and pgvector retrieves relevant profiles. Deterministic code then scores required skills, role evidence, experience, nice-to-have skills, and the location already present in the role data. With recruiter preferences, the final score is 70% technical fit and 30% preference alignment. Required location, availability, evidence, and experience criteria filter candidates.”
 
 “The model receives the completed rank and evidence to write the explanation. It cannot choose or recompute the ranking.”
 

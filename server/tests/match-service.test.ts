@@ -36,6 +36,7 @@ function rankedCandidate(
     matchedRequiredSkills: [],
     missingRequiredSkills: [],
     matchedPreferredSkills: [],
+    matchedGuidanceTerms: [],
     scoreBreakdown: {
       requiredSkills: 0,
       evidence: 0,

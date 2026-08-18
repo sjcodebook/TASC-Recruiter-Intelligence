@@ -33,8 +33,9 @@ C117 leads because it has strong required-skill and role evidence plus an exact 
 {
   "summary": "Require dubai-based candidates; Prefer immediate availability.",
   "location": {
-    "value": "dubai",
+    "values": ["dubai"],
     "mode": "required",
+    "excluded": false,
     "sourceText": "have to be from Dubai"
   },
   "availability": {
@@ -42,9 +43,10 @@ C117 leads because it has strong required-skill and role evidence plus an exact 
     "mode": "preferred",
     "sourceText": "Prioritize candidates available immediately"
   },
-  "priorityTerms": [],
+  "terms": [],
+  "experience": null,
   "experienceWeightDelta": 0,
-  "interpretedBy": "openai"
+  "interpretedBy": "hybrid"
 }
 ```
 

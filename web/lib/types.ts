@@ -18,18 +18,39 @@ export type GuidanceCriterion<T> = {
   sourceText: string;
 };
 
+export type LocationGuidanceCriterion = {
+  values: string[];
+  mode: GuidanceMode;
+  excluded: boolean;
+  sourceText: string;
+};
+
+export type ExperienceGuidanceCriterion = {
+  minYears: number | null;
+  maxYears: number | null;
+  mode: GuidanceMode;
+  sourceText: string;
+};
+
+export type TermGuidanceCriterion = GuidanceCriterion<string> & {
+  excluded: boolean;
+};
+
 export type GuidanceOverrides = {
   locationMode?: GuidanceMode;
   availabilityMode?: GuidanceMode;
+  experienceMode?: GuidanceMode;
+  termModes?: Record<string, GuidanceMode>;
 };
 
 export type Guidance = {
   summary: string;
-  location: GuidanceCriterion<string> | null;
+  location: LocationGuidanceCriterion | null;
   availability: GuidanceCriterion<number> | null;
-  priorityTerms: string[];
+  terms: TermGuidanceCriterion[];
+  experience: ExperienceGuidanceCriterion | null;
   experienceWeightDelta: number;
-  interpretedBy: "openai" | "local";
+  interpretedBy: "hybrid" | "local";
 };
 
 export type RankedCandidate = {
@@ -54,6 +75,7 @@ export type RankedCandidate = {
   matchedRequiredSkills: string[];
   missingRequiredSkills: string[];
   matchedPreferredSkills: string[];
+  matchedGuidanceTerms: string[];
   scoreBreakdown: Record<string, number>;
   whyFit: string;
   gaps: string[];

@@ -28,6 +28,28 @@ export function availabilityPreferenceScore(noticeDays: number | null, targetDay
   return 0;
 }
 
+export function experiencePreferenceScore(
+  years: number | null,
+  minYears: number | null,
+  maxYears: number | null
+): number {
+  if (years === null) return 15;
+  const below = minYears === null ? 0 : Math.max(0, minYears - years);
+  const above = maxYears === null ? 0 : Math.max(0, years - maxYears);
+  return Math.max(0, 100 - (below + above) * 20);
+}
+
+function matchesAnyLocation(candidateLocation: string, values: string[]): boolean {
+  return values.some((value) => candidateLocation.includes(normalizeText(value)));
+}
+
+function sameCountryAsAny(candidateLocation: string, values: string[]): boolean {
+  return values.some((value) => {
+    const country = CITY_COUNTRY[normalizeText(value)];
+    return Boolean(country && candidateLocation.includes(country));
+  });
+}
+
 @Service([])
 export class ScoringService {
   score(candidate: Candidate, role: Role, guidance: Guidance): RankedCandidate {
@@ -86,21 +108,26 @@ export class ScoringService {
 
     const preferenceScores: number[] = [];
     if (guidance.location?.mode === "preferred") {
-      const preferredLocation = normalizeText(guidance.location.value);
-      const preferredCountry = CITY_COUNTRY[preferredLocation];
+      const locationMatch = matchesAnyLocation(candidateLocation, guidance.location.values);
       preferenceScores.push(
-        candidateLocation.includes(preferredLocation)
-          ? 100
-          : preferredCountry && candidateLocation.includes(preferredCountry)
-            ? 50
-            : 0
+        guidance.location.excluded
+          ? locationMatch ? 0 : 100
+          : locationMatch ? 100 : sameCountryAsAny(candidateLocation, guidance.location.values) ? 50 : 0
       );
     }
     if (guidance.availability?.mode === "preferred") {
       preferenceScores.push(availabilityPreferenceScore(candidate.noticeDays, guidance.availability.value));
     }
-    for (const term of guidance.priorityTerms) {
-      preferenceScores.push(termMatches(term, searchable) ? 100 : 0);
+    for (const term of guidance.terms.filter((criterion) => criterion.mode === "preferred")) {
+      const matched = termMatches(term.value, searchable);
+      preferenceScores.push(term.excluded ? matched ? 0 : 100 : matched ? 100 : 0);
+    }
+    if (guidance.experience?.mode === "preferred") {
+      preferenceScores.push(experiencePreferenceScore(
+        candidate.experienceYears,
+        guidance.experience.minYears,
+        guidance.experience.maxYears
+      ));
     }
     const preferenceScore = preferenceScores.length
       ? round(preferenceScores.reduce((sum, value) => sum + value, 0) / preferenceScores.length)
@@ -121,11 +148,33 @@ export class ScoringService {
       Math.min(100, round(Object.values(scoreBreakdown).reduce((sum, value) => sum + value, 0)))
     );
 
+    const locationGuidanceMatch = guidance.location
+      ? matchesAnyLocation(candidateLocation, guidance.location.values)
+      : false;
     const hardLocationEligible = guidance.location?.mode !== "required"
-      || candidateLocation.includes(normalizeText(guidance.location.value));
+      || (guidance.location.excluded ? !locationGuidanceMatch : locationGuidanceMatch);
     const hardAvailabilityEligible = guidance.availability?.mode !== "required"
       || (candidate.noticeDays !== null && candidate.noticeDays <= guidance.availability.value);
-    const eligible = hardLocationEligible && hardAvailabilityEligible;
+    const hardTermsEligible = guidance.terms
+      .filter((criterion) => criterion.mode === "required")
+      .every((criterion) => {
+        const matched = termMatches(criterion.value, searchable);
+        return criterion.excluded ? !matched : matched;
+      });
+    const hardExperienceEligible = guidance.experience?.mode !== "required"
+      || (candidate.experienceYears !== null
+        && (guidance.experience.minYears === null || candidate.experienceYears >= guidance.experience.minYears)
+        && (guidance.experience.maxYears === null || candidate.experienceYears <= guidance.experience.maxYears));
+    const eligible = hardLocationEligible
+      && hardAvailabilityEligible
+      && hardTermsEligible
+      && hardExperienceEligible;
+    const matchedGuidanceTerms = guidance.terms
+      .filter((criterion) => {
+        const matched = termMatches(criterion.value, searchable);
+        return criterion.excluded ? !matched : matched;
+      })
+      .map((criterion) => criterion.excluded ? `Without ${criterion.value}` : criterion.value);
     const qualified = requiredCoverage >= 0.5 && roleFitScore >= 45;
 
     const confidencePenalty = candidate.dataQuality.reduce(
@@ -165,6 +214,7 @@ export class ScoringService {
       matchedRequiredSkills,
       missingRequiredSkills,
       matchedPreferredSkills,
+      matchedGuidanceTerms,
       scoreBreakdown,
       whyFit,
       gaps,

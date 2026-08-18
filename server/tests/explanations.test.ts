@@ -31,4 +31,25 @@ describe("candidate explanation output hygiene", () => {
       clarifyingQuestions: ["Only one question?"]
     })).toThrow("malformed candidate explanation");
   });
+
+  it("deduplicates punctuation-only question variants and fills from grounded fallbacks", () => {
+    const result = sanitizeCandidateExplanation({
+      whyFit: "The candidate has relevant recruiting evidence.",
+      gaps: ["Dubai work arrangements need confirmation."],
+      clarifyingQuestions: [
+        "Can you confirm availability to work in Dubai?——?",
+        "Can you confirm availability to work in Dubai?",
+        "Which technical roles have you recruited for?"
+      ]
+    }, [
+      "What measurable outcome best demonstrates your recruiting impact?",
+      "Which part of the role would require the most ramp-up?"
+    ]);
+
+    expect(result.clarifyingQuestions).toEqual([
+      "Can you confirm availability to work in Dubai?",
+      "Which technical roles have you recruited for?",
+      "What measurable outcome best demonstrates your recruiting impact?"
+    ]);
+  });
 });

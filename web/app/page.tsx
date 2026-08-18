@@ -121,6 +121,12 @@ function overrideSignature(overrides: GuidanceOverrides): string {
   return JSON.stringify({
     locationMode: overrides.locationMode ?? null,
     availabilityMode: overrides.availabilityMode ?? null,
+    experienceMode: overrides.experienceMode ?? null,
+    termModes: Object.fromEntries(
+      Object.entries(overrides.termModes ?? {}).sort(([left], [right]) =>
+        left.localeCompare(right),
+      ),
+    ),
   });
 }
 
@@ -128,6 +134,22 @@ function availabilityLabel(days: number): string {
   return days === 0
     ? "Immediate availability"
     : `Available within ${days} days`;
+}
+
+function locationCriterionLabel(guidance: Guidance): string {
+  if (!guidance.location) return "";
+  const values = guidance.location.values.join(" or ");
+  return guidance.location.excluded ? `Outside ${values}` : values;
+}
+
+function experienceCriterionLabel(guidance: Guidance): string {
+  if (!guidance.experience) return "";
+  const { minYears, maxYears } = guidance.experience;
+  if (minYears !== null && maxYears !== null) {
+    return `${minYears}-${maxYears} years experience`;
+  }
+  if (minYears !== null) return `${minYears}+ years experience`;
+  return `Up to ${maxYears} years experience`;
 }
 
 function displayedGuidanceSummary(
@@ -139,10 +161,13 @@ function displayedGuidanceSummary(
   const locationMode = overrides.locationMode ?? guidance.location?.mode;
   const availabilityMode =
     overrides.availabilityMode ?? guidance.availability?.mode;
+  const experienceMode = overrides.experienceMode ?? guidance.experience?.mode;
 
   if (guidance.location && locationMode) {
     (locationMode === "required" ? required : preferred).push(
-      `${guidance.location.value}-based candidates`,
+      guidance.location.excluded
+        ? `candidates outside ${guidance.location.values.join(" or ")}`
+        : `${guidance.location.values.join(" or ")}-based candidates`,
     );
   }
   if (guidance.availability && availabilityMode) {
@@ -152,7 +177,17 @@ function displayedGuidanceSummary(
         : `availability within ${guidance.availability.value} days`,
     );
   }
-  preferred.push(...guidance.priorityTerms);
+  if (guidance.experience && experienceMode) {
+    (experienceMode === "required" ? required : preferred).push(
+      experienceCriterionLabel(guidance).toLowerCase(),
+    );
+  }
+  for (const term of guidance.terms) {
+    const mode = overrides.termModes?.[term.value] ?? term.mode;
+    (mode === "required" ? required : preferred).push(
+      term.excluded ? `without ${term.value}` : term.value,
+    );
+  }
 
   const parts = [
     required.length ? `Require ${required.join(" and ")}` : null,
@@ -324,6 +359,19 @@ export default function Home() {
           : {}),
         ...(nextResult.guidance.availability
           ? { availabilityMode: nextResult.guidance.availability.mode }
+          : {}),
+        ...(nextResult.guidance.experience
+          ? { experienceMode: nextResult.guidance.experience.mode }
+          : {}),
+        ...(nextResult.guidance.terms.length
+          ? {
+              termModes: Object.fromEntries(
+                nextResult.guidance.terms.map((term) => [
+                  term.value,
+                  term.mode,
+                ]),
+              ),
+            }
           : {}),
       };
       completeMatchProgress();
@@ -606,14 +654,16 @@ export default function Home() {
                         )}
                       </strong>
                       {(result.guidance.location ||
-                        result.guidance.availability) && (
+                        result.guidance.availability ||
+                        result.guidance.experience ||
+                        result.guidance.terms.length > 0) && (
                         <div
                           className="criterion-controls"
                           aria-label="Recruiter criterion importance"
                         >
                           {result.guidance.location && (
                             <CriterionControl
-                              label={result.guidance.location.value}
+                              label={locationCriterionLabel(result.guidance)}
                               mode={
                                 guidanceOverrides.locationMode ??
                                 result.guidance.location.mode
@@ -645,12 +695,48 @@ export default function Home() {
                               }
                             />
                           )}
+                          {result.guidance.experience && (
+                            <CriterionControl
+                              label={experienceCriterionLabel(result.guidance)}
+                              mode={
+                                guidanceOverrides.experienceMode ??
+                                result.guidance.experience.mode
+                              }
+                              disabled={loading}
+                              onChange={(mode) =>
+                                setGuidanceOverrides((current) => ({
+                                  ...current,
+                                  experienceMode: mode,
+                                }))
+                              }
+                            />
+                          )}
+                          {result.guidance.terms.map((term) => (
+                            <CriterionControl
+                              key={`${term.excluded ? "without" : "with"}-${term.value}`}
+                              label={term.excluded ? `Without ${term.value}` : term.value}
+                              mode={
+                                guidanceOverrides.termModes?.[term.value] ??
+                                term.mode
+                              }
+                              disabled={loading}
+                              onChange={(mode) =>
+                                setGuidanceOverrides((current) => ({
+                                  ...current,
+                                  termModes: {
+                                    ...(current.termModes ?? {}),
+                                    [term.value]: mode,
+                                  },
+                                }))
+                              }
+                            />
+                          ))}
                         </div>
                       )}
                     </div>
                     <i>
-                      {result.guidance.interpretedBy === "openai"
-                        ? "AI interpreted"
+                      {result.guidance.interpretedBy === "hybrid"
+                        ? "AI + rules"
                         : "Rule interpreted"}
                     </i>
                   </div>
@@ -800,6 +886,9 @@ export default function Home() {
                   <div className="evidence-tags">
                     {activeCandidate.matchedRequiredSkills.map((skill) => (
                       <span key={skill}>✓ {skill}</span>
+                    ))}
+                    {activeCandidate.matchedGuidanceTerms.map((term) => (
+                      <span key={`guidance-${term}`}>✓ {term}</span>
                     ))}
                   </div>
                   <ul className="gap-list">

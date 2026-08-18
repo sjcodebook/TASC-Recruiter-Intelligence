@@ -51,9 +51,12 @@ export class MatchService {
       role.department,
       ...role.requiredSkills,
       ...role.niceToHaveSkills,
-      guidance.location?.value ?? "",
+      ...(guidance.location?.values ?? []),
       guidance.availability ? `${guidance.availability.value} days availability` : "",
-      ...guidance.priorityTerms,
+      ...guidance.terms.map((term) => term.value),
+      guidance.experience
+        ? `${guidance.experience.minYears ?? ""}-${guidance.experience.maxYears ?? ""} years experience`
+        : "",
       input.guidance
     ].join(" | ");
     const [embedding] = await this.openai.embedMany([queryText]);
@@ -90,12 +93,26 @@ export class MatchService {
     });
 
     const appliedConstraints = [
-      guidance.location?.mode === "required" ? `Location: ${guidance.location.value}` : null,
+      guidance.location?.mode === "required"
+        ? guidance.location.excluded
+          ? `Excluded location: ${guidance.location.values.join(" or ")}`
+          : `Location: ${guidance.location.values.join(" or ")}`
+        : null,
       guidance.availability?.mode === "required"
         ? guidance.availability.value === 0
           ? "Availability: immediate"
           : `Notice period: ${guidance.availability.value} days or less`
-        : null
+        : null,
+      guidance.experience?.mode === "required"
+        ? guidance.experience.minYears !== null && guidance.experience.maxYears !== null
+          ? `Experience: ${guidance.experience.minYears}-${guidance.experience.maxYears} years`
+          : guidance.experience.minYears !== null
+            ? `Experience: ${guidance.experience.minYears}+ years`
+            : `Experience: ${guidance.experience.maxYears} years or less`
+        : null,
+      ...guidance.terms
+        .filter((term) => term.mode === "required")
+        .map((term) => term.excluded ? `Exclude evidence: ${term.value}` : `Required evidence: ${term.value}`)
     ].filter((constraint): constraint is string => constraint !== null);
 
     return {

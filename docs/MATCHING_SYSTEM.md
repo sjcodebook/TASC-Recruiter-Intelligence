@@ -60,12 +60,22 @@ An exact role-city match receives 15 points. A known same-country match receives
 
 OpenAI converts free text into a typed structure containing:
 
-- required or preferred location;
+- required or preferred allowed or excluded locations;
 - required or preferred availability;
-- other priority terms;
+- required, preferred, or excluded evidence terms;
+- required or preferred minimum and maximum experience;
 - an optional adjustment to the importance of experience.
 
-A deterministic parser also recognizes explicit location, availability, and constraint language. This is a safety layer around high-impact constraints, not an offline AI fallback. The UI shows the interpretation and lets the recruiter change location or availability between preferred and required before rerunning the match.
+A deterministic parser recognizes high-impact language and reconciles every model-extracted criterion with the same precedence rules. This is a constraint-safety layer, not an offline AI fallback. The UI labels the result “AI + rules” and lets the recruiter change any extracted criterion between preferred and required before rerunning the match.
+
+The interpretation order is:
+
+1. Explicit soft language such as “prefer,” “prioritize,” “ideally,” “would like,” or “if possible” means preferred, even when the same clause contains “should” or “within.”
+2. Otherwise “must,” “required,” “only,” “have to,” “need to,” “should,” and bare structured statements mean required.
+3. “Not required,” “doesn't have to,” “optional,” and similar phrases remove the criterion instead of reversing it.
+4. “Must not,” “exclude,” “except,” “avoid,” and “without” create an excluded location or evidence term.
+
+Alternatives in one clause are preserved, so “Dubai or Abu Dhabi only” is one required allowed-location set. Availability in weeks and months is converted to days. Experience statements such as “at least five years,” “at most five years,” and ranges become numeric criteria.
 
 ### Preferences
 
@@ -75,13 +85,13 @@ When at least one preference exists:
 final score = 70% technical role fit + 30% recruiter-priority score
 ```
 
-Multiple recruiter priorities are scored separately and averaged. For example, immediate availability gives 100 points for an immediate start, 85 within 14 days, 65 within 30 days, 30 within 60 days, and zero beyond 60 days. Unknown availability receives 15 rather than being treated as confirmed alignment.
+Multiple recruiter preferences are scored separately and averaged. For example, immediate availability gives 100 points for an immediate start, 85 within 14 days, 65 within 30 days, 30 within 60 days, and zero beyond 60 days. Unknown availability receives 15 rather than being treated as confirmed alignment. Preferred evidence terms score on supported profile text, and preferred experience uses a gradual distance score.
 
 The phrase “value client-facing experience over years of experience” also moves five points from the experience component to role evidence. The technical rubric still totals 100 points.
 
 ### Required constraints
 
-Words such as “must,” “required,” “only,” “have to,” and “within” create hard eligibility rules. A required location must match the normalized location. Required availability needs a known notice period at or below the requested number of days.
+Required allowed locations must match one listed value; required excluded locations must match none. Required availability needs a known notice period at or below the requested number of days. Required evidence terms must be supported by the profile, excluded terms must not be present, and required experience needs a known value inside the stated bounds.
 
 Hard constraints filter candidates before the shortlist is created. They do not merely subtract points.
 

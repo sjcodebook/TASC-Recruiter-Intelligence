@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Candidate, Guidance, Role } from "../src/domain/types.js";
-import { availabilityPreferenceScore, ScoringService } from "../src/services/scoring.service.js";
+import {
+  availabilityPreferenceScore,
+  experiencePreferenceScore,
+  ScoringService
+} from "../src/services/scoring.service.js";
 
 const role: Role = {
   roleId: "R004",
@@ -18,7 +22,8 @@ const guidance: Guidance = {
   summary: "Default role rubric",
   location: null,
   availability: null,
-  priorityTerms: [],
+  terms: [],
+  experience: null,
   experienceWeightDelta: 0,
   interpretedBy: "local"
 };
@@ -73,7 +78,12 @@ describe("hybrid candidate scoring", () => {
   it("applies explicit recruiter constraints as eligibility gates", () => {
     const result = new ScoringService().score(candidate(), role, {
       ...guidance,
-      location: { value: "Riyadh", mode: "required", sourceText: "must be in Riyadh" },
+      location: {
+        values: ["Riyadh"],
+        mode: "required",
+        excluded: false,
+        sourceText: "must be in Riyadh"
+      },
       availability: { value: 7, mode: "required", sourceText: "within 7 days" }
     });
     expect(result.eligible).toBe(false);
@@ -86,6 +96,70 @@ describe("hybrid candidate scoring", () => {
     expect(availabilityPreferenceScore(60, 0)).toBe(30);
     expect(availabilityPreferenceScore(90, 0)).toBe(0);
     expect(availabilityPreferenceScore(null, 0)).toBe(15);
+  });
+
+  it("supports required and excluded recruiter evidence", () => {
+    const requiredArabic = new ScoringService().score(candidate(), role, {
+      ...guidance,
+      terms: [{
+        value: "Arabic",
+        mode: "required",
+        excluded: false,
+        sourceText: "must have Arabic"
+      }]
+    });
+    expect(requiredArabic.eligible).toBe(false);
+
+    const excludedTableau = new ScoringService().score(candidate(), role, {
+      ...guidance,
+      terms: [{
+        value: "Tableau",
+        mode: "required",
+        excluded: true,
+        sourceText: "must be without Tableau"
+      }]
+    });
+    expect(excludedTableau.eligible).toBe(false);
+  });
+
+  it("supports required experience ranges and gradual experience preferences", () => {
+    const required = new ScoringService().score(candidate({ experienceYears: 3 }), role, {
+      ...guidance,
+      experience: {
+        minYears: 5,
+        maxYears: null,
+        mode: "required",
+        sourceText: "at least 5 years"
+      }
+    });
+    expect(required.eligible).toBe(false);
+    expect(experiencePreferenceScore(5, 5, null)).toBe(100);
+    expect(experiencePreferenceScore(3, 5, null)).toBe(60);
+    expect(experiencePreferenceScore(null, 5, null)).toBe(15);
+  });
+
+  it("supports alternative and excluded location constraints", () => {
+    const alternatives = new ScoringService().score(candidate(), role, {
+      ...guidance,
+      location: {
+        values: ["Dubai", "Abu Dhabi"],
+        mode: "required",
+        excluded: false,
+        sourceText: "Dubai or Abu Dhabi only"
+      }
+    });
+    expect(alternatives.eligible).toBe(true);
+
+    const excluded = new ScoringService().score(candidate(), role, {
+      ...guidance,
+      location: {
+        values: ["Dubai"],
+        mode: "required",
+        excluded: true,
+        sourceText: "must not be in Dubai"
+      }
+    });
+    expect(excluded.eligible).toBe(false);
   });
 
   it("transfers rubric weight between experience and role evidence", () => {
@@ -210,7 +284,12 @@ describe("hybrid candidate scoring", () => {
     const preferenceGuidance: Guidance = {
       ...guidance,
       summary: "Require Dubai; prefer immediate availability.",
-      location: { value: "Dubai", mode: "required", sourceText: "have to be from Dubai" },
+      location: {
+        values: ["Dubai"],
+        mode: "required",
+        excluded: false,
+        sourceText: "have to be from Dubai"
+      },
       availability: { value: 0, mode: "preferred", sourceText: "prioritize candidates available immediately" }
     };
     const c117 = new ScoringService().score(candidate({
