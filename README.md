@@ -1,5 +1,7 @@
 # TASC Recruiter Intelligence
 
+![Mindmap](https://tasc.up.railway.app/mindmap.png)
+
 A recruiter selects an open role, adds optional hiring priorities, and gets a ranked shortlist with evidence, gaps, and questions to ask. After reviewing the results, they can approve candidates and download a Markdown brief for the hiring manager.
 
 - [Live application](https://tasc.up.railway.app)
@@ -134,5 +136,6 @@ In a staged rollout, I would measure shortlist acceptance, time to first qualifi
 - [Prompt documentation](docs/PROMPTS.md)
 - [Example input and output](docs/EXAMPLE_INPUT_OUTPUT.md)
 - [Detailed matching logic](docs/MATCHING_SYSTEM.md)
+- [Excalidraw system walkthrough](docs/TASC_SYSTEM_DEMO.excalidraw)
 
 Current verification: 41 API tests pass, both production builds pass, and the core flow has been exercised in a real browser against Postgres, pgvector, and OpenAI.
