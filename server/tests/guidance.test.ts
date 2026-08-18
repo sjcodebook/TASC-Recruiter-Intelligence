@@ -65,4 +65,25 @@ describe("local recruiter guidance interpretation", () => {
       "Require dubai-based candidates; Prefer immediate availability, e-commerce."
     );
   });
+
+  it("deduplicates semantically equivalent priority terms", async () => {
+    const aiService = new GuidanceService({
+      interpretGuidance: async () => ({
+        summary: "",
+        location: null,
+        availability: null,
+        priorityTerms: ["client-facing experience"],
+        experienceWeightDelta: -5
+      })
+    } as never);
+
+    const result = await aiService.interpret(
+      "We value client-facing experience over years of experience"
+    );
+
+    expect(result.priorityTerms).toEqual(["client-facing"]);
+    expect(result.summary).toBe(
+      "Prefer client-facing; reduce emphasis on years of experience."
+    );
+  });
 });

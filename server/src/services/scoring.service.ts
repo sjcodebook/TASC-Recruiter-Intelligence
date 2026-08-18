@@ -39,20 +39,20 @@ export class ScoringService {
     const requiredCoverage = role.requiredSkills.length
       ? matchedRequiredSkills.length / role.requiredSkills.length
       : 1;
-    const requiredSkills = 35 * requiredCoverage;
+    const requiredSkills = 40 * requiredCoverage;
 
     const semantic = Math.max(0, Math.min(1, candidate.semanticSimilarity ?? 0));
     const roleTokens = tokens(`${role.title} ${role.department}`);
     const roleEvidenceTokens = tokens(`${candidate.headline} ${candidate.pastRoles}`);
     const roleOverlap = [...roleTokens].filter((token) => roleEvidenceTokens.has(token)).length;
     const roleEvidence = roleTokens.size ? roleOverlap / roleTokens.size : 0;
-    const experienceWeight = 20 + guidance.experienceWeightDelta;
-    const evidenceWeight = 25 - guidance.experienceWeightDelta;
+    const experienceWeight = 10 + guidance.experienceWeightDelta;
+    const evidenceWeight = 30 - guidance.experienceWeightDelta;
     const evidence = evidenceWeight * (
       0.6 * semantic + 0.4 * Math.min(1, roleEvidence)
     );
 
-    let experienceFactor = 0.35;
+    let experienceFactor = 0.5;
     if (candidate.experienceYears !== null) {
       if (candidate.experienceYears >= role.experienceMin && candidate.experienceYears <= role.experienceMax) {
         experienceFactor = 1;
@@ -65,15 +65,15 @@ export class ScoringService {
     }
     const experience = experienceWeight * experienceFactor;
     const preferredSkills = role.niceToHaveSkills.length
-      ? 10 * (matchedPreferredSkills.length / role.niceToHaveSkills.length)
-      : 10;
+      ? 5 * (matchedPreferredSkills.length / role.niceToHaveSkills.length)
+      : 5;
 
     const roleCity = normalizeText(role.location);
     const candidateLocation = normalizeText(candidate.normalizedLocation ?? "");
     const sameCity = candidateLocation.includes(roleCity);
     const country = CITY_COUNTRY[roleCity];
     const sameCountry = Boolean(country && candidateLocation.includes(country));
-    const roleLocation = sameCity ? 10 : sameCountry ? 5 : 0;
+    const roleLocation = sameCity ? 15 : sameCountry ? 6 : 0;
 
     const baseBreakdown = {
       requiredSkills: round(requiredSkills),

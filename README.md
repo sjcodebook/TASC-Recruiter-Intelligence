@@ -64,15 +64,15 @@ The pipeline is hybrid rather than LLM-only:
 
 | Technical role-fit component | Points | What it measures |
 | --- | ---: | --- |
-| Required skills | 35 | Direct or alias-based evidence for role requirements |
-| Role evidence | 25 | Semantic similarity plus title/past-role overlap |
-| Experience | 20 | Alignment with the role's stated experience range |
-| Preferred skills | 10 | Evidence for nice-to-have requirements |
-| Role location | 10 | Same-city or same-country alignment with the role |
+| Required skills | 40 | Direct or alias-based evidence for role requirements |
+| Role evidence | 30 | Semantic similarity plus title/past-role overlap |
+| Experience | 10 | Alignment with the role's stated experience range |
+| Preferred skills | 5 | Evidence for nice-to-have requirements |
+| Role location | 15 | Exact-city alignment, with partial same-country credit |
 
 Without recruiter preferences, the technical role-fit score is the final score. When preferences exist, the final score is 70% technical role fit and 30% recruiter-priority alignment. Preferences change ranking, while hard eligibility gates are created only by explicit constraint language such as "must," "only," "required," or "within."
 
-The table shows the default weights. Relative guidance can shift five points between role evidence and experience while preserving a 100-point technical rubric. For example, "value client-facing experience over years of experience" moves five points from experience duration to role evidence and separately rewards direct client-facing evidence in the recruiter-priority score.
+The table shows the default weights. Exact-city alignment receives 15 points, same-country alignment receives 6, and other or unknown locations receive 0. Missing experience receives a neutral 5 of 10 points and lowers evidence confidence instead of being treated as evidence of a poor fit. Relative guidance can shift five points between role evidence and experience while preserving a 100-point technical rubric. For example, "value client-facing experience over years of experience" moves five points from experience duration to role evidence and separately rewards direct client-facing evidence in the recruiter-priority score.
 
 This rubric is deliberately not a hiring decision. It is a review-order heuristic whose components are visible in the interface.
 
@@ -183,6 +183,6 @@ The success criterion is not "the AI picked the hire." It is that recruiters fin
 - Recruiter-guidance interpretation unit tests.
 - Hybrid scoring and eligibility unit tests.
 - TypeScript production builds for API and frontend.
-- Live Postgres 17 plus pgvector 0.8.1 migration and seed.
+- Live Postgres 17 plus pgvector 0.8.6 migration and seed.
 - API checks for health, metadata, role retrieval, matching, approval, and Markdown output.
 - Browser walkthrough on desktop and mobile viewports.

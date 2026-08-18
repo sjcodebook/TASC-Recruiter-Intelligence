@@ -6,6 +6,7 @@ import type {
   GuidanceMode,
   GuidanceOverrides
 } from "../domain/types.js";
+import { normalizeText } from "../utils/text.js";
 
 const LOCATIONS = ["dubai", "riyadh", "abu dhabi", "cairo", "doha", "jeddah", "sharjah", "amman"];
 const HARD_LANGUAGE = /\b(must|required?|only|have to|has to|need to|needs to|within|no more than)\b/i;
@@ -24,7 +25,7 @@ function modeFor(clause: string): GuidanceMode {
 function uniqueTerms(terms: string[]): string[] {
   const seen = new Set<string>();
   return terms.filter((term) => {
-    const normalized = term.toLowerCase();
+    const normalized = normalizeText(term).replace(/\bexperience\b/g, "").trim();
     if (seen.has(normalized)) return false;
     seen.add(normalized);
     return true;

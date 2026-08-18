@@ -46,8 +46,8 @@ The location clause is an eligibility requirement. Immediate availability is a p
     {
       "rank": 1,
       "candidateId": "C035",
-      "score": 68.2,
-      "roleFitScore": 61.0,
+      "score": 73.8,
+      "roleFitScore": 69.0,
       "preferenceScore": 85.0,
       "confidence": 100,
       "fitBand": "Promising",
@@ -57,9 +57,10 @@ The location clause is an eligibility requirement. Immediate availability is a p
     {
       "rank": 2,
       "candidateId": "C117",
-      "score": 55.0,
-      "roleFitScore": 78.6,
+      "score": 59.5,
+      "roleFitScore": 85.2,
       "preferenceScore": 0,
+      "confidence": 82,
       "noticePeriod": "90 days notice"
     }
   ]
@@ -77,8 +78,8 @@ C117 is the stronger technical match, but C035 ranks first because its two-week 
 
 ## 1. C035 - Data analyst with a passion for turning numbers into decisions
 
-**Match score:** 68.2/100  
-**Technical role fit:** 61.0/100  
+**Match score:** 73.8/100
+**Technical role fit:** 69.0/100
 **Recruiter priorities:** 85.0/100  
 **Evidence confidence:** 100%  
 **Location:** Dubai, UAE  
