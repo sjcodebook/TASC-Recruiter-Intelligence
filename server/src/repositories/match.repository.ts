@@ -31,7 +31,7 @@ export class MatchRepository {
     roleId: string;
     rawGuidance: string;
     guidance: Guidance;
-    aiMode: "openai" | "local";
+    aiMode: "openai";
     candidates: RankedCandidate[];
   }): Promise<void> {
     await this.database.transaction(async (client) => {

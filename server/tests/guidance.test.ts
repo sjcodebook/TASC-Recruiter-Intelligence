@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { GuidanceService } from "../src/services/guidance.service.js";
 
-const service = new GuidanceService({ interpretGuidance: async () => null } as never);
+const service = new GuidanceService({
+  interpretGuidance: async () => ({
+    summary: "",
+    location: null,
+    availability: null,
+    priorityTerms: [],
+    deprioritizedTerms: [],
+    experienceWeightDelta: 0
+  })
+} as never);
 
 describe("local recruiter guidance interpretation", () => {
   it("treats explicit constraint language as a hard filter", () => {

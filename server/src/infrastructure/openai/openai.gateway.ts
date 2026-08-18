@@ -4,40 +4,30 @@ import { zodTextFormat } from "openai/helpers/zod";
 import { env, EMBEDDING_DIMENSIONS } from "../../config/env.js";
 import { ExplanationBatchSchema, GuidanceSchema } from "../../domain/schemas.js";
 import type { Guidance, RankedCandidate, Role } from "../../domain/types.js";
-import { localEmbedding } from "../../utils/text.js";
 
 @Service([])
 export class OpenAIGateway {
-  private readonly client: OpenAI | null;
+  private readonly client: OpenAI;
 
   constructor() {
-    this.client = env.OPENAI_API_KEY
-      ? new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 15_000, maxRetries: 1 })
-      : null;
+    this.client = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 15_000, maxRetries: 1 });
   }
 
-  get mode(): "openai" | "local" {
-    return this.client ? "openai" : "local";
+  get mode(): "openai" {
+    return "openai";
   }
 
   async embedMany(texts: string[]): Promise<number[][]> {
-    if (!this.client) return texts.map((text) => localEmbedding(text, EMBEDDING_DIMENSIONS));
-    try {
-      const response = await this.client.embeddings.create({
-        model: env.OPENAI_EMBEDDING_MODEL,
-        input: texts,
-        dimensions: EMBEDDING_DIMENSIONS,
-        encoding_format: "float"
-      });
-      return response.data.sort((left, right) => left.index - right.index).map((item) => item.embedding);
-    } catch (error) {
-      console.warn("OpenAI embeddings are unavailable; using deterministic local embeddings.", error);
-      return texts.map((text) => localEmbedding(text, EMBEDDING_DIMENSIONS));
-    }
+    const response = await this.client.embeddings.create({
+      model: env.OPENAI_EMBEDDING_MODEL,
+      input: texts,
+      dimensions: EMBEDDING_DIMENSIONS,
+      encoding_format: "float"
+    });
+    return response.data.sort((left, right) => left.index - right.index).map((item) => item.embedding);
   }
 
-  async interpretGuidance(rawGuidance: string): Promise<Omit<Guidance, "interpretedBy"> | null> {
-    if (!this.client || !rawGuidance.trim()) return null;
+  async interpretGuidance(rawGuidance: string): Promise<Omit<Guidance, "interpretedBy">> {
     const response = await this.client.responses.parse({
       model: env.OPENAI_MODEL,
       input: [
@@ -50,6 +40,7 @@ export class OpenAIGateway {
       ],
       text: { format: zodTextFormat(GuidanceSchema, "recruiter_guidance") }
     });
+    if (!response.output_parsed) throw new Error("OpenAI did not return structured recruiter guidance.");
     return response.output_parsed;
   }
 
@@ -57,8 +48,7 @@ export class OpenAIGateway {
     role: Role;
     guidance: Guidance;
     candidates: RankedCandidate[];
-  }): Promise<Map<string, { whyFit: string; gaps: string[]; clarifyingQuestions: string[] }> | null> {
-    if (!this.client) return null;
+  }): Promise<Map<string, { whyFit: string; gaps: string[]; clarifyingQuestions: string[] }>> {
     const evidence = input.candidates.map((candidate) => ({
       candidateId: candidate.candidateId,
       headline: candidate.headline,
@@ -91,12 +81,17 @@ export class OpenAIGateway {
       ],
       text: { format: zodTextFormat(ExplanationBatchSchema, "candidate_explanations") }
     });
-    if (!response.output_parsed) return null;
-    return new Map(
+    if (!response.output_parsed) throw new Error("OpenAI did not return structured candidate explanations.");
+    const explanations = new Map(
       response.output_parsed.candidates.map((item) => [
         item.candidateId,
         { whyFit: item.whyFit, gaps: item.gaps, clarifyingQuestions: item.clarifyingQuestions }
       ])
     );
+    const missingCandidate = input.candidates.find((candidate) => !explanations.has(candidate.candidateId));
+    if (missingCandidate) {
+      throw new Error(`OpenAI did not explain shortlisted candidate ${missingCandidate.candidateId}.`);
+    }
+    return explanations;
   }
 }

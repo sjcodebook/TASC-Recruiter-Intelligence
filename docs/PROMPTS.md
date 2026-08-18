@@ -1,6 +1,6 @@
 # Prompt documentation
 
-The application uses OpenAI only for language-shaped work. Retrieval and scoring remain deterministic and inspectable.
+The application requires OpenAI for embeddings, guidance interpretation, and evidence-grounded explanations. Retrieval and scoring remain deterministic and inspectable.
 
 Both responses use Structured Outputs with Zod schemas, which prevents free-form parsing and makes model failures easy to handle.
 
@@ -8,15 +8,17 @@ Both responses use Structured Outputs with Zod schemas, which prevents free-form
 
 **Model:** `OPENAI_MODEL`, default `gpt-5.6-luna`  
 **Input:** the recruiter's optional guidance string  
-**Output:** a typed guidance object with summary, hard constraints, priority terms, deprioritized terms, and an experience-weight adjustment
+**Output:** a typed guidance object with structured location and availability criteria, priority terms, deprioritized terms, and an experience-weight adjustment
 
 System prompt:
 
 ```text
-Convert recruiter guidance into a conservative matching rubric. Only make a hard
-location or notice-period constraint when the recruiter clearly uses words such
-as must, only, require, or within. Keep priority terms short. Do not infer
-protected traits.
+Convert recruiter guidance into structured matching criteria. Classify each
+location or availability criterion independently. Words such as must, only,
+required, have to, need to, or within mean required. Words such as prefer,
+prioritize, or value mean preferred. Do not let hard language in one clause make
+another clause required. Immediate availability is represented as 0 days. Keep
+priority terms short. Do not infer protected traits.
 ```
 
 Example user input:
@@ -29,16 +31,16 @@ Expected structured shape:
 
 ```json
 {
-  "summary": "prioritize client-facing experience; reduce emphasis on years",
-  "maxNoticeDays": null,
-  "requiredLocation": null,
+  "summary": "Prefer client-facing; reduce emphasis on years of experience.",
+  "location": null,
+  "availability": null,
   "priorityTerms": ["client-facing"],
   "deprioritizedTerms": [],
   "experienceWeightDelta": -5
 }
 ```
 
-The local fallback follows the same conservative rule: preferences change weight, while explicit constraints affect eligibility.
+The deterministic parser also extracts explicit location and availability language before merging the model response. This is a constraint-safety layer, not an offline fallback. If OpenAI interpretation fails, the match request fails rather than switching modes.
 
 ## 2. Candidate explanation generator
 
@@ -64,7 +66,4 @@ Candidate fields can contain arbitrary text. They are serialized as data inside 
 
 ## Failure behavior
 
-- Guidance failure: use the local conservative parser.
-- Embedding failure: use deterministic signed feature-hashing vectors with the same 256-dimension pgvector column.
-- Explanation failure: keep the deterministic shortlist and produce evidence-based local explanations and questions.
-
+`OPENAI_API_KEY` is mandatory. Missing configuration prevents the API from starting. Embedding, guidance, or explanation failures propagate to the current operation so the application never mixes embedding spaces or silently changes ranking and explanation behavior.

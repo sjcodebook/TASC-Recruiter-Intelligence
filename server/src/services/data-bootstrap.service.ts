@@ -6,7 +6,6 @@ import { CandidateRepository } from "../repositories/candidate.repository.js";
 import { RoleRepository } from "../repositories/role.repository.js";
 import { OpenAIGateway } from "../infrastructure/openai/openai.gateway.js";
 import type { Candidate, Role } from "../domain/types.js";
-import { EMBEDDING_DIMENSIONS } from "../config/env.js";
 import {
   cleanOptional,
   findDataQualityIssues,
@@ -17,7 +16,6 @@ import {
   parseNoticeDays,
   splitList
 } from "../utils/normalization.js";
-import { localEmbedding } from "../utils/text.js";
 
 type CsvRow = Record<string, string>;
 
@@ -29,7 +27,7 @@ export class DataBootstrapService {
     private readonly openai: OpenAIGateway
   ) {}
 
-  async seed(): Promise<{ roles: number; candidates: number; aiMode: string }> {
+  async seed(): Promise<{ roles: number; candidates: number }> {
     const dataDir = process.env.DATA_DIR
       ? path.resolve(process.env.DATA_DIR)
       : path.resolve(process.cwd(), "../data");
@@ -59,19 +57,13 @@ export class DataBootstrapService {
     const prepared = candidateRows.map((row, index) => this.prepareCandidate(row, index));
     for (let start = 0; start < prepared.length; start += 64) {
       const batch = prepared.slice(start, start + 64);
-      let embeddings: number[][];
-      try {
-        embeddings = await this.openai.embedMany(batch.map((item) => item.profileText));
-      } catch (error) {
-        console.warn("OpenAI embedding failed; using deterministic local embeddings for this batch.", error);
-        embeddings = batch.map((item) => localEmbedding(item.profileText, EMBEDDING_DIMENSIONS));
-      }
+      const embeddings = await this.openai.embedMany(batch.map((item) => item.profileText));
       for (let index = 0; index < batch.length; index += 1) {
         await this.candidates.upsert({ ...batch[index], embedding: embeddings[index] });
       }
     }
 
-    return { roles: roleRows.length, candidates: candidateRows.length, aiMode: this.openai.mode };
+    return { roles: roleRows.length, candidates: candidateRows.length };
   }
 
   private prepareCandidate(row: CsvRow, index: number): Candidate & { sourceCandidateId: string | null } {

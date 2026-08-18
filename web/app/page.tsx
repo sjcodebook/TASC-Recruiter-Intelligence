@@ -246,8 +246,8 @@ export default function Home() {
           <span className="product-name">Match intelligence</span>
         </div>
         <div className="system-status" aria-label="System status">
-          <span className={`status-dot ${meta?.aiMode === "openai" ? "live" : "local"}`} />
-          <span>{meta?.aiMode === "openai" ? "OpenAI reasoning" : "Local evaluation mode"}</span>
+          <span className="status-dot live" />
+          <span>OpenAI reasoning</span>
           <span className="status-separator">·</span>
           <span>{meta?.candidateCount ?? "..."} profiles</span>
           <span className="status-separator desktop-only">·</span>

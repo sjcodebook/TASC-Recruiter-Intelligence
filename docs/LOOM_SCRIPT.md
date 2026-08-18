@@ -9,14 +9,14 @@
 1. Select the Data Analyst role.
 2. Click "Prioritize candidates available immediately."
 3. Run the match.
-4. Point out 115 unique profiles considered and five duplicates hidden.
+4. Point out 110 unique profiles considered and ten duplicates hidden.
 5. Open two different candidates and compare match score with evidence confidence.
 6. Show score composition, matched evidence, gaps, and exactly three questions.
 7. Select candidates, approve them, and download the Markdown brief.
 
 ## 1:40-3:20 - Explain the AI system
 
-"The system is hybrid. pgvector retrieves semantically relevant profiles, then a deterministic rubric ranks them. Required skills carry 35 points, role evidence 20, experience 15, preferred skills 10, logistics 10, and recruiter guidance 10. Guidance can rebalance experience versus recruiter priorities. The model interprets natural language and writes explanations, but it does not secretly choose the ranking."
+"The system is hybrid. pgvector retrieves semantically relevant profiles, then a deterministic rubric ranks them. Technical role fit combines required skills, role evidence, experience, preferred skills, and role location. When recruiter preferences exist, the final score is 70% technical fit and 30% recruiter-priority alignment. The model interprets natural language and writes explanations, but it does not secretly choose the ranking."
 
 Show these folders:
 
@@ -29,7 +29,7 @@ Show these folders:
 
 ## 3:20-4:20 - Reliability and messy data
 
-"The supplied dataset includes missing records, invalid experience, reversed education dates, inconsistent locations, and duplicate profiles. I preserve uncertainty as data-quality notes and lower evidence confidence rather than making facts up. If OpenAI is unavailable, the same workflow falls back to deterministic local embeddings, guidance parsing, and evidence templates."
+"The supplied dataset includes missing records, invalid experience, reversed education dates, inconsistent locations, and duplicate profiles. I preserve uncertainty as data-quality notes and lower evidence confidence rather than making facts up. OpenAI configuration is required, and provider failures are explicit so the system never silently changes embedding or explanation behavior."
 
 ## 4:20-5:20 - Evaluation and production direction
 

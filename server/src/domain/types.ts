@@ -93,7 +93,7 @@ export type MatchResponse = {
   guidance: Guidance;
   candidates: RankedCandidate[];
   generatedAt: string;
-  aiMode: "openai" | "local";
+  aiMode: "openai";
   totalConsidered: number;
   duplicatesHidden: number;
   requestedLimit: number;

@@ -12,7 +12,7 @@ export class MetaService {
   ) {}
 
   async read(): Promise<{
-    aiMode: "openai" | "local";
+    aiMode: "openai";
     candidateCount: number;
     uniqueProfileCount: number;
     pgvectorVersion: string;
@@ -29,4 +29,3 @@ export class MetaService {
     };
   }
 }
-

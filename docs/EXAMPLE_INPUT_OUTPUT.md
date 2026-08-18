@@ -1,13 +1,14 @@
 # Example input and output
 
-This example was generated from the supplied CSVs in local evaluation mode.
+This example was generated from the supplied CSVs with OpenAI enabled.
 
 ## Input
 
 ```json
 {
   "roleId": "R004",
-  "guidance": "Prioritize candidates available immediately",
+  "guidance": "Prioritize candidates available immediately and have to be from Dubai",
+  "guidanceOverrides": {},
   "limit": 5
 }
 ```
@@ -16,49 +17,57 @@ This example was generated from the supplied CSVs in local evaluation mode.
 
 ```json
 {
-  "summary": "prioritize immediate availability",
-  "maxNoticeDays": null,
-  "requiredLocation": null,
-  "priorityTerms": ["immediate availability"],
+  "summary": "Require dubai-based candidates; Prefer immediate availability.",
+  "location": {
+    "value": "dubai",
+    "mode": "required",
+    "sourceText": "have to be from Dubai"
+  },
+  "availability": {
+    "value": 0,
+    "mode": "preferred",
+    "sourceText": "Prioritize candidates available immediately"
+  },
+  "priorityTerms": [],
   "deprioritizedTerms": [],
   "experienceWeightDelta": 0,
-  "interpretedBy": "local"
+  "interpretedBy": "openai"
 }
 ```
 
-The wording is a soft preference, so it changes ranking but does not filter candidates.
+The location clause is an eligibility requirement. Immediate availability is a preference, so it changes ranking without filtering candidates who have a notice period.
 
 ## Shortlist excerpt
 
 ```json
 {
-  "totalConsidered": 115,
-  "duplicatesHidden": 5,
+  "totalConsidered": 110,
+  "duplicatesHidden": 10,
   "candidates": [
     {
       "rank": 1,
-      "candidateId": "C039",
-      "score": 74.2,
-      "confidence": 96,
+      "candidateId": "C035",
+      "score": 68.2,
+      "roleFitScore": 61.0,
+      "preferenceScore": 85.0,
+      "confidence": 100,
       "fitBand": "Promising",
-      "matchedRequiredSkills": [
-        "SQL",
-        "Python/R",
-        "data visualization",
-        "statistics"
-      ],
-      "gaps": [
-        "Location alignment with Dubai should be confirmed."
-      ],
-      "clarifyingQuestions": [
-        "What is your availability to work in Dubai, including relocation or travel expectations?",
-        "Which accomplishment best demonstrates your readiness for the scope and seniority of this Data Analyst role?",
-        "What measurable outcome from your recent work best demonstrates the impact you would bring to this Data Analyst role?"
-      ]
+      "noticePeriod": "2 weeks notice",
+      "matchedRequiredSkills": ["SQL", "Python/R", "statistics"]
+    },
+    {
+      "rank": 2,
+      "candidateId": "C117",
+      "score": 55.0,
+      "roleFitScore": 78.6,
+      "preferenceScore": 0,
+      "noticePeriod": "90 days notice"
     }
   ]
 }
 ```
+
+C117 is the stronger technical match, but C035 ranks first because its two-week notice period is substantially closer to the recruiter's explicit availability preference.
 
 ## Approved Markdown excerpt
 
@@ -67,27 +76,24 @@ The wording is a soft preference, so it changes ranking but does not filter cand
 
 **Location:** Dubai
 
-## 1. C039 - Data-driven analyst with e-commerce and retail background
+## 1. C035 - Data analyst with a passion for turning numbers into decisions
 
-**Match score:** 74/100  
-**Evidence confidence:** 96%  
-**Location:** Alexandria, Egypt  
-**Availability:** Available immediately
+**Match score:** 68.2/100  
+**Technical role fit:** 61.0/100  
+**Recruiter priorities:** 85.0/100  
+**Evidence confidence:** 100%  
+**Location:** Dubai, UAE  
+**Availability:** 2 weeks notice
 
 ### Why this candidate
 
-The profile shows evidence for SQL, Python/R, data visualization, and 3 years of
-reported experience is available for review, making this a defensible Data
-Analyst conversation.
+The candidate is Dubai-based and has strong evidence of SQL, Python/R, and
+statistics, with a two-week notice period that is closer to the
+immediate-availability preference.
 
 ### Gaps to validate
 
-- Location alignment with Dubai should be confirmed.
-
-### Recommended interview questions
-
-1. What is your availability to work in Dubai, including relocation or travel expectations?
-2. Which accomplishment best demonstrates your readiness for the scope and seniority of this Data Analyst role?
-3. What measurable outcome from your recent work best demonstrates the impact you would bring to this Data Analyst role?
+- Data visualization capability is not evidenced.
+- Experience is above the stated target range.
+- Immediate availability is not confirmed.
 ```
-

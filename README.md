@@ -21,7 +21,7 @@ TASC Match Intelligence turns a role and optional recruiter guidance into a shor
 - Candidate content is treated as untrusted evidence, never as instructions to the model.
 - Missing skills are described as "not evidenced," not as proven absences.
 - Duplicate profiles are hidden from the shortlist and reported in the run summary.
-- The application remains fully usable without an API key through deterministic local embeddings and templated evidence explanations.
+- `OPENAI_API_KEY` is required. The API fails during configuration rather than silently switching embedding or explanation behavior.
 
 ## Architecture
 
@@ -43,7 +43,7 @@ flowchart LR
 - `server`: Node.js, Express, TypeScript, and `@freshgum/typedi`.
 - `data`: the supplied role and candidate CSVs.
 - Postgres: source of truth for normalized profiles, match runs, scores, and approvals.
-- pgvector: cosine-similarity retrieval over 256-dimension profile embeddings.
+- pgvector: cosine-similarity retrieval over 256-dimension OpenAI profile embeddings.
 - OpenAI: official JavaScript SDK, Responses API Structured Outputs, and embeddings API.
 
 Dependency injection is intentionally boring. Services declare constructor dependencies, while `Container.get` appears only at composition roots such as `createApp` and the seed script. Controllers do not reach into the container.
@@ -62,16 +62,15 @@ The pipeline is hybrid rather than LLM-only:
 
 ### Default score rubric
 
-| Component | Points | What it measures |
+| Technical role-fit component | Points | What it measures |
 | --- | ---: | --- |
 | Required skills | 35 | Direct or alias-based evidence for role requirements |
-| Role evidence | 20 | Semantic similarity plus title/past-role evidence |
-| Experience | 15 | Alignment with the role's stated experience range |
+| Role evidence | 25 | Semantic similarity plus title/past-role overlap |
+| Experience | 20 | Alignment with the role's stated experience range |
 | Preferred skills | 10 | Evidence for nice-to-have requirements |
-| Logistics | 10 | Role location and reported notice period |
-| Recruiter guidance | 10 | Evidence for explicit recruiter priorities |
+| Role location | 10 | Same-city or same-country alignment with the role |
 
-The experience and guidance weights can trade up to 10 points in either direction when the recruiter explicitly says experience matters more or less. Soft guidance changes ranking. Hard eligibility gates are created only by words such as "must," "only," "required," or "within."
+Without recruiter preferences, the technical role-fit score is the final score. When preferences exist, the final score is 70% technical role fit and 30% recruiter-priority alignment. Preferences change ranking, while hard eligibility gates are created only by explicit constraint language such as "must," "only," "required," or "within."
 
 This rubric is deliberately not a hiring decision. It is a review-order heuristic whose components are visible in the interface.
 
@@ -91,7 +90,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). The API runs on [http://localhost:4000](http://localhost:4000), and pgvector is exposed locally on port `54329`.
 
-`OPENAI_API_KEY` is optional. Add it to `server/.env` to enable OpenAI embeddings, guidance interpretation, and explanation generation. Without it, all flows use the deterministic local fallback. Next.js reads `NEXT_PUBLIC_API_URL` from `web/.env.local`.
+`OPENAI_API_KEY` is required in `server/.env`. The API validates configuration during startup and does not run without it. Next.js reads `NEXT_PUBLIC_API_URL` from `web/.env.local`.
 
 Useful commands:
 
@@ -110,7 +109,7 @@ docker compose down -v   # optional full local database reset
 | `PORT` | `4000` | API port |
 | `WEB_ORIGIN` | `http://localhost:3000` | Allowed browser origin |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:4000` | Browser-visible API URL |
-| `OPENAI_API_KEY` | empty | Enables OpenAI mode |
+| `OPENAI_API_KEY` | required | OpenAI embeddings, guidance interpretation, and explanations |
 | `OPENAI_MODEL` | `gpt-5.6-luna` | Structured guidance and explanation model |
 | `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | Candidate and role embedding model |
 | `DATA_DIR` | `../data` from server | Optional CSV directory override |
@@ -120,7 +119,7 @@ docker compose down -v   # optional full local database reset
 Create one Railway project with three services:
 
 1. **Postgres**: deploy Railway's [pgvector template](https://railway.com/deploy/pgvector-latest) rather than the standard Postgres service, which does not bundle the extension. Expose the pgvector service's private `DATABASE_URL` to the API service. The API migration runs `CREATE EXTENSION IF NOT EXISTS vector`.
-2. **API**: deploy this repository using `server/Dockerfile`. Set `DATABASE_URL`, `WEB_ORIGIN`, and optionally `OPENAI_API_KEY`. The container migrates and idempotently seeds before starting.
+2. **API**: deploy this repository using `server/Dockerfile`. Set `DATABASE_URL`, `WEB_ORIGIN`, and `OPENAI_API_KEY`. The container migrates and idempotently seeds before starting.
 3. **Web**: deploy this repository using `web/Dockerfile`. Set the build argument and environment variable `NEXT_PUBLIC_API_URL` to the public API URL.
 
 The API Dockerfile expects the repository root as its build context because it copies the supplied CSV files from `data/`.

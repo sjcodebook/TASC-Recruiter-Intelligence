@@ -7,8 +7,7 @@ const database = Container.get(DatabaseService);
 
 try {
   const result = await bootstrap.seed();
-  console.log(`Seeded ${result.roles} roles and ${result.candidates} candidates (${result.aiMode} embeddings).`);
+  console.log(`Seeded ${result.roles} roles and ${result.candidates} candidates with OpenAI embeddings.`);
 } finally {
   await database.close();
 }
-

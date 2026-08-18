@@ -48,25 +48,6 @@ export function termMatches(term: string, candidateText: string): boolean {
   return overlap / requiredTokens.length >= 0.65;
 }
 
-export function localEmbedding(text: string, dimensions: number): number[] {
-  const vector = new Array<number>(dimensions).fill(0);
-  const normalized = normalizeText(text);
-  const units = normalized.split(" ").filter(Boolean);
-  const features = [...units, ...units.slice(0, -1).map((token, index) => `${token}_${units[index + 1]}`)];
-  for (const feature of features) {
-    let hash = 2166136261;
-    for (let index = 0; index < feature.length; index += 1) {
-      hash ^= feature.charCodeAt(index);
-      hash = Math.imul(hash, 16777619);
-    }
-    const bucket = Math.abs(hash) % dimensions;
-    vector[bucket] += hash % 2 === 0 ? 1 : -1;
-  }
-  const norm = Math.sqrt(vector.reduce((sum, value) => sum + value * value, 0)) || 1;
-  return vector.map((value) => value / norm);
-}
-
 export function vectorLiteral(vector: number[]): string {
   return `[${vector.map((value) => value.toFixed(8)).join(",")}]`;
 }
-

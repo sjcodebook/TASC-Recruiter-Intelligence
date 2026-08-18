@@ -77,30 +77,22 @@ export class GuidanceService {
     if (!trimmed) return this.applyOverrides(this.defaultGuidance(), overrides);
 
     const local = this.localInterpretation(trimmed);
-    try {
-      const aiResult = await this.openai.interpretGuidance(trimmed);
-      if (aiResult) {
-        const location = local.location ?? aiResult.location;
-        const availability = local.availability ?? aiResult.availability;
-        const merged: Guidance = {
-          ...aiResult,
-          location,
-          availability,
-          priorityTerms: removeStructuredTerms(
-            uniqueTerms([...local.priorityTerms, ...aiResult.priorityTerms]),
-            location,
-            availability
-          ),
-          experienceWeightDelta: local.experienceWeightDelta || aiResult.experienceWeightDelta,
-          interpretedBy: "openai"
-        };
-        return this.applyOverrides(this.withSummary(merged), overrides);
-      }
-    } catch (error) {
-      console.warn("OpenAI guidance parsing failed; using local parser.", error);
-    }
-
-    return this.applyOverrides(local, overrides);
+    const aiResult = await this.openai.interpretGuidance(trimmed);
+    const location = local.location ?? aiResult.location;
+    const availability = local.availability ?? aiResult.availability;
+    const merged: Guidance = {
+      ...aiResult,
+      location,
+      availability,
+      priorityTerms: removeStructuredTerms(
+        uniqueTerms([...local.priorityTerms, ...aiResult.priorityTerms]),
+        location,
+        availability
+      ),
+      experienceWeightDelta: local.experienceWeightDelta || aiResult.experienceWeightDelta,
+      interpretedBy: "openai"
+    };
+    return this.applyOverrides(this.withSummary(merged), overrides);
   }
 
   localInterpretation(rawGuidance: string): Guidance {

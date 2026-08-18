@@ -67,7 +67,7 @@ export type MatchResponse = {
   guidance: Guidance;
   candidates: RankedCandidate[];
   generatedAt: string;
-  aiMode: "openai" | "local";
+  aiMode: "openai";
   totalConsidered: number;
   duplicatesHidden: number;
   requestedLimit: number;
@@ -77,7 +77,7 @@ export type MatchResponse = {
 };
 
 export type Meta = {
-  aiMode: "openai" | "local";
+  aiMode: "openai";
   candidateCount: number;
   uniqueProfileCount: number;
   pgvectorVersion: string;

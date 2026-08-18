@@ -70,19 +70,14 @@ export class MatchService {
     const qualifiedCount = ranked.filter((candidate) => candidate.eligible && candidate.qualified).length;
     let shortlist = selectEligibleShortlist(ranked, input.limit);
 
-    let aiMode: "openai" | "local" = "local";
-    try {
+    if (shortlist.length > 0) {
       const explanations = await this.openai.explainCandidates({ role, guidance, candidates: shortlist });
-      if (explanations) {
-        shortlist = shortlist.map((candidate) => ({
-          ...candidate,
-          ...(explanations.get(candidate.candidateId) ?? {})
-        }));
-        aiMode = "openai";
-      }
-    } catch (error) {
-      console.warn("OpenAI explanation failed; using evidence-based local explanations.", error);
+      shortlist = shortlist.map((candidate) => ({
+        ...candidate,
+        ...explanations.get(candidate.candidateId)!
+      }));
     }
+    const aiMode = "openai" as const;
 
     const runId = randomUUID();
     await this.matches.saveRun({
