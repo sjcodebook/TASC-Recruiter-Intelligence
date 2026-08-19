@@ -5,7 +5,7 @@
 A recruiter selects an open role, adds optional hiring priorities, and gets a ranked shortlist with evidence, gaps, and questions to ask. After reviewing the results, they can approve candidates and download a Markdown brief for the hiring manager.
 
 - [Live application](https://tasc.up.railway.app)
-- Loom walkthrough: add link after recording
+- Video walkthrough: https://youtu.be/7oyr2opukLA
 - [Prompts](docs/PROMPTS.md) · [Example run](docs/EXAMPLE_INPUT_OUTPUT.md) · [Matching system](docs/MATCHING_SYSTEM.md)
 
 ## What the product does
