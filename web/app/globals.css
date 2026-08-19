@@ -1124,6 +1124,64 @@ button {
   line-height: 1.65;
 }
 
+.evidence-generation {
+  margin-top: 20px;
+  padding: 18px 16px;
+  border: 1px solid rgba(0, 122, 105, 0.24);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  background: rgba(217, 241, 235, 0.48);
+}
+
+.evidence-generation.failed {
+  border-color: rgba(155, 93, 36, 0.3);
+  background: rgba(155, 93, 36, 0.08);
+}
+
+.evidence-generation-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 5px rgba(0, 166, 141, 0.12);
+  animation: evidence-pulse 1.4s ease-in-out infinite;
+}
+
+.evidence-generation.failed .evidence-generation-dot {
+  background: var(--warning);
+  box-shadow: 0 0 0 5px rgba(155, 93, 36, 0.12);
+  animation: none;
+}
+
+.evidence-generation h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.evidence-generation p {
+  margin: 5px 0 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.evidence-generation button {
+  margin-top: 12px;
+  border: 0;
+  padding: 8px 10px;
+  background: var(--ink);
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+@keyframes evidence-pulse {
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+
 .breakdown-list {
   display: flex;
   flex-direction: column;

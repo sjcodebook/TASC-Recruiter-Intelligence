@@ -6,19 +6,36 @@ import { RoleRepository } from "../repositories/role.repository.js";
 import { OpenAIGateway } from "../infrastructure/openai/openai.gateway.js";
 import { GuidanceService } from "./guidance.service.js";
 import { effectiveMinimumExperience, ScoringService } from "./scoring.service.js";
-import type { GuidanceOverrides, MatchResponse, RankedCandidate, Role } from "../domain/types.js";
+import type {
+  Guidance,
+  GuidanceOverrides,
+  MatchResponse,
+  RankedCandidate,
+  Role
+} from "../domain/types.js";
 import { AppError } from "../http/app-error.js";
 import { env, EMBEDDING_DIMENSIONS } from "../config/env.js";
 import { TtlCache } from "../utils/ttl-cache.js";
 
-type MatchInput = {
+export type MatchInput = {
   roleId: string;
   guidance: string;
   limit: number;
   guidanceOverrides: GuidanceOverrides;
 };
 
-const MATCH_ENGINE_VERSION = "match-v3";
+type MatchContext = {
+  role: Role;
+  dataVersion: string;
+  cacheKey: string;
+};
+
+type PreparedInput = {
+  guidance: Guidance;
+  embedding: number[];
+};
+
+const MATCH_ENGINE_VERSION = "match-v4-two-phase";
 
 export function matchCacheKey(input: MatchInput, dataVersion: string): string {
   const termModes = Object.fromEntries(
@@ -52,6 +69,31 @@ export function selectEligibleShortlist(
     .map((candidate, index) => ({ ...candidate, rank: index + 1 }));
 }
 
+function appliedConstraints(guidance: Guidance): string[] {
+  return [
+    guidance.location?.mode === "required"
+      ? guidance.location.excluded
+        ? `Excluded location: ${guidance.location.values.join(" or ")}`
+        : `Location: ${guidance.location.values.join(" or ")}`
+      : null,
+    guidance.availability?.mode === "required"
+      ? guidance.availability.value === 0
+        ? "Availability: immediate"
+        : `Notice period: ${guidance.availability.value} days or less`
+      : null,
+    guidance.experience?.mode === "required"
+      ? guidance.experience.minYears !== null && guidance.experience.maxYears !== null
+        ? `Experience: ${guidance.experience.minYears}-${guidance.experience.maxYears} years`
+        : guidance.experience.minYears !== null
+          ? `Experience: ${guidance.experience.minYears}+ years`
+          : `Experience: ${guidance.experience.maxYears} years or less`
+      : null,
+    ...guidance.terms
+      .filter((term) => term.mode === "required")
+      .map((term) => term.excluded ? `Exclude evidence: ${term.value}` : `Required evidence: ${term.value}`)
+  ].filter((constraint): constraint is string => constraint !== null);
+}
+
 @Service([
   CandidateRepository,
   MatchRepository,
@@ -62,7 +104,9 @@ export function selectEligibleShortlist(
 ])
 export class MatchService {
   private readonly resultCache = new TtlCache<MatchResponse>(50, 30 * 60 * 1000);
-  private readonly inFlight = new Map<string, Promise<MatchResponse>>();
+  private readonly preparedInputCache = new TtlCache<PreparedInput>(50, 10 * 60 * 1000);
+  private readonly rankingInFlight = new Map<string, Promise<MatchResponse>>();
+  private readonly preparationInFlight = new Map<string, Promise<PreparedInput>>();
 
   constructor(
     private readonly candidates: CandidateRepository,
@@ -73,43 +117,144 @@ export class MatchService {
     private readonly scoring: ScoringService
   ) {}
 
+  /** Compatibility path for API consumers that still need one complete response. */
   async run(input: MatchInput): Promise<MatchResponse> {
+    const prepared = await this.prepare(input);
+    if (prepared.status === "complete") return prepared;
+    return this.finalize(prepared.runId);
+  }
+
+  /** Warm only the exact guidance interpretation and query embedding used by prepare(). */
+  async preflight(input: MatchInput): Promise<void> {
+    const context = await this.context(input);
+    if (this.resultCache.get(context.cacheKey)) return;
+    await this.getPreparedInput(context.cacheKey, input, context.role);
+  }
+
+  async prepare(input: MatchInput): Promise<MatchResponse> {
     const startedAt = performance.now();
+    const context = await this.context(input);
+    const memoryCached = this.resultCache.get(context.cacheKey);
+    if (memoryCached) {
+      const replay = await this.replay(memoryCached, input.guidance, context.cacheKey);
+      this.logTiming("match.ranking_ready", "memory-cache", startedAt);
+      return replay;
+    }
+
+    const persisted = await this.matches.findCompletedByCacheKey(context.cacheKey);
+    if (persisted) {
+      this.resultCache.set(context.cacheKey, structuredClone(persisted));
+      const replay = await this.replay(persisted, input.guidance, context.cacheKey);
+      this.logTiming("match.ranking_ready", "database-cache", startedAt);
+      return replay;
+    }
+
+    const pending = this.rankingInFlight.get(context.cacheKey);
+    if (pending) {
+      const replay = await this.replay(await pending, input.guidance, context.cacheKey);
+      this.logTiming("match.ranking_ready", "shared", startedAt);
+      return replay;
+    }
+
+    const computation = this.computeRanking(input, context);
+    this.rankingInFlight.set(context.cacheKey, computation);
+    try {
+      const response = await computation;
+      if (response.status === "complete") {
+        this.resultCache.set(context.cacheKey, structuredClone(response));
+      }
+      this.logTiming("match.ranking_ready", "cold", startedAt);
+      return response;
+    } finally {
+      this.rankingInFlight.delete(context.cacheKey);
+    }
+  }
+
+  async finalize(runId: string): Promise<MatchResponse> {
+    const startedAt = performance.now();
+    const claim = await this.matches.claimFinalization(runId);
+    if (!claim.claimed) {
+      const current = (await this.matches.findRun(runId)).response;
+      this.logTiming("match.finalize_reused", current.status, startedAt);
+      return current;
+    }
+
+    const stored = await this.matches.findRun(runId);
+    const response = stored.response;
+    try {
+      let candidates = response.candidates;
+      if (candidates.length > 0) {
+        const explanationStartedAt = performance.now();
+        const explanations = await this.openai.explainCandidates({
+          role: response.role,
+          guidance: response.guidance,
+          candidates
+        });
+        candidates = candidates.map((candidate) => ({
+          ...candidate,
+          ...explanations.get(candidate.candidateId)!
+        }));
+        this.logTiming("match.stage.explanation", "openai", explanationStartedAt);
+      }
+      const persistenceStartedAt = performance.now();
+      await this.matches.completeRun(runId, candidates);
+      this.logTiming("match.stage.final_persistence", "postgres", persistenceStartedAt);
+      const completed: MatchResponse = {
+        ...response,
+        status: "complete",
+        explanationError: null,
+        generatedAt: new Date().toISOString(),
+        candidates
+      };
+      this.resultCache.set(stored.cacheKey, structuredClone(completed));
+      this.logTiming("match.completed", "openai", startedAt);
+      return completed;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Evidence generation failed.";
+      console.error(JSON.stringify({ event: "match.explanation_error", runId, message }));
+      await this.matches.failRun(
+        runId,
+        "The ranking is safe, but the evidence brief did not finish. Retry to continue."
+      );
+      this.logTiming("match.explanation_failed", "openai", startedAt);
+      throw error;
+    }
+  }
+
+  async getRun(runId: string): Promise<MatchResponse> {
+    return (await this.matches.findRun(runId)).response;
+  }
+
+  private async context(input: MatchInput): Promise<MatchContext> {
     const [role, dataVersion] = await Promise.all([
       this.roles.findById(input.roleId),
       this.candidates.dataVersion()
     ]);
     if (!role) throw AppError.notFound(`Role ${input.roleId} was not found.`, "ROLE_NOT_FOUND");
+    return { role, dataVersion, cacheKey: matchCacheKey(input, dataVersion) };
+  }
 
-    const cacheKey = matchCacheKey(input, dataVersion);
-    const cached = this.resultCache.get(cacheKey);
-    if (cached) {
-      const replay = await this.replay(cached, input.guidance);
-      this.logTiming("cache", startedAt);
-      return replay;
-    }
+  private async getPreparedInput(cacheKey: string, input: MatchInput, role: Role): Promise<PreparedInput> {
+    const cached = this.preparedInputCache.get(cacheKey);
+    if (cached) return structuredClone(cached);
+    const pending = this.preparationInFlight.get(cacheKey);
+    if (pending) return structuredClone(await pending);
 
-    const pending = this.inFlight.get(cacheKey);
-    if (pending) {
-      const replay = await this.replay(await pending, input.guidance);
-      this.logTiming("shared", startedAt);
-      return replay;
-    }
-
-    const computation = this.runUncached(input, role);
-    this.inFlight.set(cacheKey, computation);
+    const preparation = this.computePreparedInput(input, role);
+    this.preparationInFlight.set(cacheKey, preparation);
     try {
-      const response = await computation;
-      this.resultCache.set(cacheKey, structuredClone(response));
-      this.logTiming("cold", startedAt);
-      return response;
+      const prepared = await preparation;
+      this.preparedInputCache.set(cacheKey, structuredClone(prepared));
+      return prepared;
     } finally {
-      this.inFlight.delete(cacheKey);
+      this.preparationInFlight.delete(cacheKey);
     }
   }
 
-  private async runUncached(input: MatchInput, role: Role): Promise<MatchResponse> {
+  private async computePreparedInput(input: MatchInput, role: Role): Promise<PreparedInput> {
+    const guidanceStartedAt = performance.now();
     const guidance = await this.guidanceService.interpret(input.guidance, input.guidanceOverrides);
+    this.logTiming("match.stage.guidance", "openai-or-cache", guidanceStartedAt);
     const queryText = [
       role.title,
       role.department,
@@ -123,10 +268,20 @@ export class MatchService {
         : "",
       input.guidance
     ].join(" | ");
+    const embeddingStartedAt = performance.now();
     const [embedding] = await this.openai.embedMany([queryText]);
-    const retrieved = await this.candidates.findSemanticMatches(embedding, 120);
+    this.logTiming("match.stage.embedding", "openai", embeddingStartedAt);
+    return { guidance, embedding };
+  }
+
+  private async computeRanking(input: MatchInput, context: MatchContext): Promise<MatchResponse> {
+    const prepared = await this.getPreparedInput(context.cacheKey, input, context.role);
+    const retrievalStartedAt = performance.now();
+    const retrieved = await this.candidates.findSemanticMatches(prepared.embedding, 120);
+    this.logTiming("match.stage.retrieval", "pgvector", retrievalStartedAt);
+    const scoringStartedAt = performance.now();
     const ranked = retrieved
-      .map((candidate) => this.scoring.score(candidate, role, guidance))
+      .map((candidate) => this.scoring.score(candidate, context.role, prepared.guidance))
       .sort((left, right) => {
         if (left.eligible !== right.eligible) return left.eligible ? -1 : 1;
         if (left.qualified !== right.qualified) return left.qualified ? -1 : 1;
@@ -140,58 +295,19 @@ export class MatchService {
         && candidate.meetsRoleRelevanceThreshold
         && candidate.meetsMinimumExperience === false
     ).length;
-    const minimumExperienceYears = effectiveMinimumExperience(role, guidance);
-    let shortlist = selectEligibleShortlist(ranked, input.limit);
-
-    if (shortlist.length > 0) {
-      const explanations = await this.openai.explainCandidates({ role, guidance, candidates: shortlist });
-      shortlist = shortlist.map((candidate) => ({
-        ...candidate,
-        ...explanations.get(candidate.candidateId)!
-      }));
-    }
-    const aiMode = "openai" as const;
-
-    const runId = randomUUID();
-    await this.matches.saveRun({
-      runId,
-      roleId: role.roleId,
-      rawGuidance: input.guidance,
-      guidance,
-      aiMode,
-      candidates: shortlist
-    });
-
-    const appliedConstraints = [
-      guidance.location?.mode === "required"
-        ? guidance.location.excluded
-          ? `Excluded location: ${guidance.location.values.join(" or ")}`
-          : `Location: ${guidance.location.values.join(" or ")}`
-        : null,
-      guidance.availability?.mode === "required"
-        ? guidance.availability.value === 0
-          ? "Availability: immediate"
-          : `Notice period: ${guidance.availability.value} days or less`
-        : null,
-      guidance.experience?.mode === "required"
-        ? guidance.experience.minYears !== null && guidance.experience.maxYears !== null
-          ? `Experience: ${guidance.experience.minYears}-${guidance.experience.maxYears} years`
-          : guidance.experience.minYears !== null
-            ? `Experience: ${guidance.experience.minYears}+ years`
-            : `Experience: ${guidance.experience.maxYears} years or less`
-        : null,
-      ...guidance.terms
-        .filter((term) => term.mode === "required")
-        .map((term) => term.excluded ? `Exclude evidence: ${term.value}` : `Required evidence: ${term.value}`)
-    ].filter((constraint): constraint is string => constraint !== null);
-
-    return {
-      runId,
-      role,
-      guidance,
+    const minimumExperienceYears = effectiveMinimumExperience(context.role, prepared.guidance);
+    const shortlist = selectEligibleShortlist(ranked, input.limit);
+    this.logTiming("match.stage.scoring", "deterministic", scoringStartedAt);
+    const status = shortlist.length === 0 ? "complete" as const : "ranking_ready" as const;
+    const response: MatchResponse = {
+      runId: randomUUID(),
+      status,
+      explanationError: null,
+      role: context.role,
+      guidance: prepared.guidance,
       candidates: shortlist,
       generatedAt: new Date().toISOString(),
-      aiMode,
+      aiMode: "openai",
       totalConsidered: retrieved.length,
       duplicatesHidden: retrieved.reduce((sum, candidate) => sum + (candidate.duplicateIds?.length ?? 0), 0),
       requestedLimit: input.limit,
@@ -199,29 +315,27 @@ export class MatchService {
       qualifiedCount,
       belowMinimumExperienceCount,
       minimumExperienceYears,
-      appliedConstraints
+      appliedConstraints: appliedConstraints(prepared.guidance)
     };
-  }
-
-  private async replay(cached: MatchResponse, rawGuidance: string): Promise<MatchResponse> {
-    const response = structuredClone(cached);
-    response.runId = randomUUID();
-    response.generatedAt = new Date().toISOString();
-    await this.matches.saveRun({
-      runId: response.runId,
-      roleId: response.role.roleId,
-      rawGuidance,
-      guidance: response.guidance,
-      aiMode: response.aiMode,
-      candidates: response.candidates
-    });
+    const persistenceStartedAt = performance.now();
+    await this.matches.saveRun(response, input.guidance, context.cacheKey);
+    this.logTiming("match.stage.ranking_persistence", "postgres", persistenceStartedAt);
     return response;
   }
 
-  private logTiming(cache: "cold" | "cache" | "shared", startedAt: number): void {
+  private async replay(cached: MatchResponse, rawGuidance: string, cacheKey: string): Promise<MatchResponse> {
+    const response = structuredClone(cached);
+    response.runId = randomUUID();
+    response.generatedAt = new Date().toISOString();
+    response.explanationError = null;
+    await this.matches.saveRun(response, rawGuidance, cacheKey);
+    return response;
+  }
+
+  private logTiming(event: string, source: string, startedAt: number): void {
     console.info(JSON.stringify({
-      event: "match.completed",
-      cache,
+      event,
+      source,
       durationMs: Math.round(performance.now() - startedAt)
     }));
   }

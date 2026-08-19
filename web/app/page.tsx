@@ -36,28 +36,28 @@ const MATCH_PROGRESS_STAGES = [
     detail: "Turning recruiter language into required and preferred criteria.",
   },
   {
-    startsAtPercent: 24,
-    label: "Retrieve profiles",
+    startsAtPercent: 25,
+    label: "Build the search",
     detail:
-      "Embedding the search and querying candidate profiles with pgvector.",
+      "Preparing the exact semantic query for the selected role and rubric.",
   },
   {
-    startsAtPercent: 48,
-    label: "Score the evidence",
+    startsAtPercent: 45,
+    label: "Retrieve profiles",
     detail:
-      "Deduplicating profiles and calculating deterministic role-fit scores.",
+      "Querying candidate profiles with pgvector and hiding duplicates.",
   },
   {
     startsAtPercent: 70,
-    label: "Explain the ranking",
+    label: "Score the evidence",
     detail:
-      "Writing evidence-grounded summaries, gaps, and interview questions.",
+      "Applying the deterministic role-fit and recruiter-priority rubric.",
   },
   {
-    startsAtPercent: 90,
-    label: "Save the shortlist",
+    startsAtPercent: 88,
+    label: "Save the ranking",
     detail:
-      "Persisting the ranked result so it is ready for recruiter approval.",
+      "Persisting the exact candidate order before generating evidence briefs.",
   },
 ] as const;
 
@@ -233,6 +233,8 @@ export default function Home() {
   } | null>(null);
   const approveButtonRef = useRef<HTMLButtonElement>(null);
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const preflightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const matchRequestIdRef = useRef(0);
 
   useEffect(() => {
     Promise.all([
@@ -245,11 +247,42 @@ export default function Home() {
         return response.json() as Promise<Meta>;
       }),
     ])
-      .then(([roleData, metaData]) => {
+      .then(async ([roleData, metaData]) => {
         setRoles(roleData.roles);
         setMeta(metaData);
         if (!roleData.roles.some((role) => role.roleId === roleId)) {
           setRoleId(roleData.roles[0]?.roleId ?? "");
+        }
+        const saved = window.sessionStorage.getItem("tasc-active-match");
+        if (!saved) return;
+        try {
+          const recovery = JSON.parse(saved) as {
+            runId: string;
+            roleId: string;
+            guidance: string;
+            guidanceOverrides: GuidanceOverrides;
+          };
+          const response = await fetch(`${API_URL}/api/matches/${recovery.runId}`);
+          if (!response.ok) return;
+          const recovered = (await response.json()) as MatchResponse;
+          const requestId = ++matchRequestIdRef.current;
+          setRoleId(recovery.roleId);
+          setGuidance(recovery.guidance);
+          setGuidanceOverrides(recovery.guidanceOverrides);
+          setResult(recovered);
+          setLastRunInput({
+            roleId: recovery.roleId,
+            guidance: normalizeGuidance(recovery.guidance),
+            overrides: overrideSignature(recovery.guidanceOverrides),
+          });
+          setActiveCandidateId(recovered.candidates[0]?.candidateId ?? null);
+          if (recovered.status === "ranking_ready" || recovered.status === "failed") {
+            void finalizeMatch(recovered.runId, requestId);
+          } else if (recovered.status === "explaining") {
+            void pollMatchRun(recovered.runId, requestId);
+          }
+        } catch {
+          window.sessionStorage.removeItem("tasc-active-match");
         }
       })
       .catch((loadError) => setError(formatError(loadError)));
@@ -258,9 +291,33 @@ export default function Home() {
   useEffect(
     () => () => {
       if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
+      if (preflightTimerRef.current) clearTimeout(preflightTimerRef.current);
     },
     [],
   );
+
+  useEffect(() => {
+    if (!roleId) return;
+    if (preflightTimerRef.current) clearTimeout(preflightTimerRef.current);
+    const controller = new AbortController();
+    preflightTimerRef.current = setTimeout(() => {
+      void fetch(`${API_URL}/api/matches/preflight`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roleId,
+          guidance,
+          guidanceOverrides,
+          limit: 5,
+        }),
+        signal: controller.signal,
+      }).catch(() => undefined);
+    }, guidance.trim() ? 700 : 150);
+    return () => {
+      if (preflightTimerRef.current) clearTimeout(preflightTimerRef.current);
+      controller.abort();
+    };
+  }, [roleId, guidance, guidanceOverrides]);
 
   const selectedRole = useMemo(
     () => roles.find((role) => role.roleId === roleId) ?? null,
@@ -324,7 +381,7 @@ export default function Home() {
       percent: 100,
       stageIndex: MATCH_PROGRESS_STAGES.length,
       label: "Shortlist ready",
-      detail: "The ranking, evidence, and recruiter brief are ready to review.",
+      detail: "The ranking is ready. Evidence briefs will continue in the background.",
       elapsedSeconds: current?.elapsedSeconds ?? 0,
       complete: true,
     }));
@@ -338,6 +395,7 @@ export default function Home() {
 
   async function runMatch() {
     if (!roleId) return;
+    const requestId = ++matchRequestIdRef.current;
     const requestInput = { roleId, guidance, guidanceOverrides };
     setLoading(true);
     setMatching(true);
@@ -345,13 +403,14 @@ export default function Home() {
     setError(null);
     setMarkdown(null);
     try {
-      const response = await fetch(`${API_URL}/api/matches`, {
+      const response = await fetch(`${API_URL}/api/matches/prepare`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...requestInput, limit: 5 }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Matching failed.");
+      if (requestId !== matchRequestIdRef.current) return;
       const nextResult = payload as MatchResponse;
       const resolvedOverrides: GuidanceOverrides = {
         ...(nextResult.guidance.location
@@ -375,7 +434,6 @@ export default function Home() {
           : {}),
       };
       completeMatchProgress();
-      await new Promise((resolve) => window.setTimeout(resolve, 520));
       setResult(nextResult);
       setGuidanceOverrides(resolvedOverrides);
       setLastRunInput({
@@ -385,13 +443,101 @@ export default function Home() {
       });
       setActiveCandidateId(nextResult.candidates[0]?.candidateId ?? null);
       setSelectedCandidateIds([]);
-    } catch (matchError) {
-      setError(formatError(matchError));
-    } finally {
+      window.sessionStorage.setItem(
+        "tasc-active-match",
+        JSON.stringify({
+          runId: nextResult.runId,
+          roleId: requestInput.roleId,
+          guidance: requestInput.guidance,
+          guidanceOverrides: resolvedOverrides,
+        }),
+      );
       stopMatchProgress();
       setMatching(false);
       setLoading(false);
+      if (nextResult.status === "ranking_ready") {
+        await finalizeMatch(nextResult.runId, requestId);
+      }
+    } catch (matchError) {
+      if (requestId === matchRequestIdRef.current) {
+        setError(formatError(matchError));
+      }
+    } finally {
+      if (requestId === matchRequestIdRef.current) {
+        stopMatchProgress();
+        setMatching(false);
+        setLoading(false);
+      }
     }
+  }
+
+  async function finalizeMatch(runId: string, requestId: number) {
+    setResult((current) =>
+      current?.runId === runId
+        ? { ...current, status: "explaining", explanationError: null }
+        : current,
+    );
+    try {
+      const response = await fetch(`${API_URL}/api/matches/${runId}/finalize`, {
+        method: "POST",
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Evidence generation failed.");
+      if (requestId !== matchRequestIdRef.current) return;
+      const finalized = payload as MatchResponse;
+      if (finalized.status === "explaining") {
+        await pollMatchRun(runId, requestId);
+        return;
+      }
+      setResult(finalized);
+    } catch {
+      if (requestId !== matchRequestIdRef.current) return;
+      try {
+        const recovery = await fetch(`${API_URL}/api/matches/${runId}`);
+        if (!recovery.ok) throw new Error("Could not recover the match run.");
+        const recovered = (await recovery.json()) as MatchResponse;
+        if (requestId === matchRequestIdRef.current) setResult(recovered);
+      } catch {
+        setResult((current) =>
+          current?.runId === runId
+            ? {
+                ...current,
+                status: "failed",
+                explanationError:
+                  "The ranking is safe, but the evidence brief did not finish.",
+              }
+            : current,
+        );
+      }
+    }
+  }
+
+  async function pollMatchRun(runId: string, requestId: number) {
+    for (let attempt = 0; attempt < 45; attempt += 1) {
+      if (requestId !== matchRequestIdRef.current) return;
+      await new Promise((resolve) => window.setTimeout(resolve, 1_000));
+      const response = await fetch(`${API_URL}/api/matches/${runId}`);
+      if (!response.ok) return;
+      const current = (await response.json()) as MatchResponse;
+      if (requestId !== matchRequestIdRef.current) return;
+      setResult(current);
+      if (current.status !== "explaining") return;
+    }
+    setResult((current) =>
+      current?.runId === runId
+        ? {
+            ...current,
+            status: "failed",
+            explanationError: "Evidence generation timed out. The ranking is still available.",
+          }
+        : current,
+    );
+  }
+
+  function retryEvidence() {
+    if (!result || result.status !== "failed" || resultsAreStale) return;
+    const requestId = matchRequestIdRef.current;
+    void finalizeMatch(result.runId, requestId);
   }
 
   async function approveSelection() {
@@ -419,7 +565,7 @@ export default function Home() {
   }
 
   function toggleCandidate(candidateId: string) {
-    if (resultsAreStale) return;
+    if (resultsAreStale || result?.status !== "complete") return;
     setSelectedCandidateIds((current) =>
       current.includes(candidateId)
         ? current.filter((item) => item !== candidateId)
@@ -475,6 +621,8 @@ export default function Home() {
               value={roleId}
               disabled={loading}
               onChange={(event) => {
+                matchRequestIdRef.current += 1;
+                window.sessionStorage.removeItem("tasc-active-match");
                 setRoleId(event.target.value);
                 setGuidanceOverrides({});
                 setResult(null);
@@ -524,6 +672,7 @@ export default function Home() {
               value={guidance}
               disabled={loading}
               onChange={(event) => {
+                matchRequestIdRef.current += 1;
                 setGuidance(event.target.value);
                 setGuidanceOverrides({});
               }}
@@ -537,6 +686,7 @@ export default function Home() {
                   type="button"
                   disabled={loading}
                   onClick={() => {
+                    matchRequestIdRef.current += 1;
                     setGuidance(example);
                     setGuidanceOverrides({});
                   }}
@@ -670,10 +820,13 @@ export default function Home() {
                               }
                               disabled={loading}
                               onChange={(mode) =>
-                                setGuidanceOverrides((current) => ({
-                                  ...current,
-                                  locationMode: mode,
-                                }))
+                                {
+                                  matchRequestIdRef.current += 1;
+                                  setGuidanceOverrides((current) => ({
+                                    ...current,
+                                    locationMode: mode,
+                                  }));
+                                }
                               }
                             />
                           )}
@@ -688,10 +841,13 @@ export default function Home() {
                               }
                               disabled={loading}
                               onChange={(mode) =>
-                                setGuidanceOverrides((current) => ({
-                                  ...current,
-                                  availabilityMode: mode,
-                                }))
+                                {
+                                  matchRequestIdRef.current += 1;
+                                  setGuidanceOverrides((current) => ({
+                                    ...current,
+                                    availabilityMode: mode,
+                                  }));
+                                }
                               }
                             />
                           )}
@@ -704,10 +860,13 @@ export default function Home() {
                               }
                               disabled={loading}
                               onChange={(mode) =>
-                                setGuidanceOverrides((current) => ({
-                                  ...current,
-                                  experienceMode: mode,
-                                }))
+                                {
+                                  matchRequestIdRef.current += 1;
+                                  setGuidanceOverrides((current) => ({
+                                    ...current,
+                                    experienceMode: mode,
+                                  }));
+                                }
                               }
                             />
                           )}
@@ -721,13 +880,16 @@ export default function Home() {
                               }
                               disabled={loading}
                               onChange={(mode) =>
-                                setGuidanceOverrides((current) => ({
-                                  ...current,
-                                  termModes: {
-                                    ...(current.termModes ?? {}),
-                                    [term.value]: mode,
-                                  },
-                                }))
+                                {
+                                  matchRequestIdRef.current += 1;
+                                  setGuidanceOverrides((current) => ({
+                                    ...current,
+                                    termModes: {
+                                      ...(current.termModes ?? {}),
+                                      [term.value]: mode,
+                                    },
+                                  }));
+                                }
                               }
                             />
                           ))}
@@ -779,7 +941,11 @@ export default function Home() {
                       selected={selectedCandidateIds.includes(
                         candidate.candidateId,
                       )}
-                      disabled={resultsAreStale || matching}
+                      disabled={
+                        resultsAreStale ||
+                        matching ||
+                        result.status !== "complete"
+                      }
                       onOpen={() => setActiveCandidateId(candidate.candidateId)}
                       onToggle={() => toggleCandidate(candidate.candidateId)}
                     />
@@ -802,6 +968,7 @@ export default function Home() {
                 disabled={
                   loading ||
                   resultsAreStale ||
+                  result.status !== "complete" ||
                   selectedCandidateIds.length === 0
                 }
               >
@@ -860,10 +1027,12 @@ export default function Home() {
                   </div>
                 </div>
 
-                <section className="inspector-section">
-                  <h3>Why this candidate</h3>
-                  <p>{activeCandidate.whyFit}</p>
-                </section>
+                {result?.status === "complete" && (
+                  <section className="inspector-section">
+                    <h3>Why this candidate</h3>
+                    <p>{activeCandidate.whyFit}</p>
+                  </section>
+                )}
 
                 <section className="inspector-section">
                   <h3>Score composition</h3>
@@ -887,31 +1056,62 @@ export default function Home() {
                   </div>
                 </section>
 
-                <section className="inspector-section">
-                  <h3>Evidence & gaps</h3>
-                  <div className="evidence-tags">
-                    {activeCandidate.matchedRequiredSkills.map((skill) => (
-                      <span key={skill}>✓ {skill}</span>
-                    ))}
-                    {activeCandidate.matchedGuidanceTerms.map((term) => (
-                      <span key={`guidance-${term}`}>✓ {term}</span>
-                    ))}
-                  </div>
-                  <ul className="gap-list">
-                    {activeCandidate.gaps.map((gap) => (
-                      <li key={gap}>{gap}</li>
-                    ))}
-                  </ul>
-                </section>
+                {result?.status !== "complete" && (
+                  <section
+                    className={`evidence-generation ${result?.status === "failed" ? "failed" : ""}`}
+                    aria-live="polite"
+                  >
+                    <span className="evidence-generation-dot" />
+                    <div>
+                      <h3>
+                        {result?.status === "failed"
+                          ? "Evidence brief needs another try"
+                          : "Generating evidence brief…"}
+                      </h3>
+                      <p>
+                        {result?.status === "failed"
+                          ? result.explanationError ??
+                            "The ranking is safe, but the evidence brief did not finish."
+                          : "The candidate order and scores are final. AI is writing the evidence summary, gaps, and interview questions."}
+                      </p>
+                      {result?.status === "failed" && !resultsAreStale && (
+                        <button type="button" onClick={retryEvidence}>
+                          Retry evidence brief
+                        </button>
+                      )}
+                    </div>
+                  </section>
+                )}
 
-                <section className="inspector-section questions-section">
-                  <h3>Questions to ask</h3>
-                  <ol>
-                    {activeCandidate.clarifyingQuestions.map((question) => (
-                      <li key={question}>{question}</li>
-                    ))}
-                  </ol>
-                </section>
+                {result?.status === "complete" && (
+                  <>
+                    <section className="inspector-section">
+                      <h3>Evidence & gaps</h3>
+                      <div className="evidence-tags">
+                        {activeCandidate.matchedRequiredSkills.map((skill) => (
+                          <span key={skill}>✓ {skill}</span>
+                        ))}
+                        {activeCandidate.matchedGuidanceTerms.map((term) => (
+                          <span key={`guidance-${term}`}>✓ {term}</span>
+                        ))}
+                      </div>
+                      <ul className="gap-list">
+                        {activeCandidate.gaps.map((gap) => (
+                          <li key={gap}>{gap}</li>
+                        ))}
+                      </ul>
+                    </section>
+
+                    <section className="inspector-section questions-section">
+                      <h3>Questions to ask</h3>
+                      <ol>
+                        {activeCandidate.clarifyingQuestions.map((question) => (
+                          <li key={question}>{question}</li>
+                        ))}
+                      </ol>
+                    </section>
+                  </>
+                )}
 
                 {(activeCandidate.dataQuality.length > 0 ||
                   activeCandidate.duplicateIds?.length) && (

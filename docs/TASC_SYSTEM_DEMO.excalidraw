@@ -78,7 +78,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": null,
-      "index": "a0137",
+      "index": "a0139",
       "roundness": null,
       "seed": 965767553,
       "version": 1,
@@ -1259,7 +1259,7 @@
     {
       "id": "brief-to-persist",
       "type": "arrow",
-      "x": 1630,
+      "x": 1560,
       "y": 775,
       "width": 70,
       "height": 0,
@@ -1291,7 +1291,7 @@
           0
         ],
         [
-          -70,
+          70,
           0
         ]
       ],
@@ -1305,10 +1305,10 @@
     {
       "id": "persist-to-response",
       "type": "arrow",
-      "x": 1395,
+      "x": 1795,
       "y": 850,
-      "width": 0,
-      "height": 140,
+      "width": 400,
+      "height": 75,
       "angle": 0,
       "strokeColor": "#008f7a",
       "backgroundColor": "transparent",
@@ -1338,7 +1338,61 @@
         ],
         [
           0,
-          140
+          75
+        ],
+        [
+          -400,
+          0
+        ],
+        [
+          0,
+          65
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": null,
+      "endBinding": null,
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false
+    },
+    {
+      "id": "response-to-brief",
+      "type": "arrow",
+      "x": 1395,
+      "y": 990,
+      "width": 0,
+      "height": 130,
+      "angle": 0,
+      "strokeColor": "#7048e8",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-flow",
+      "index": "a0134",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 2275225283,
+      "version": 1,
+      "versionNonce": 775535566,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1724000000000,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          -130
         ]
       ],
       "lastCommittedPoint": null,
@@ -1365,7 +1419,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-flow",
-      "index": "a0134",
+      "index": "a0136",
       "roundness": {
         "type": 2
       },
@@ -1411,7 +1465,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-flow",
-      "index": "a0135",
+      "index": "a0137",
       "roundness": {
         "type": 2
       },
@@ -1457,7 +1511,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-flow",
-      "index": "a0136",
+      "index": "a0138",
       "roundness": {
         "type": 2
       },
@@ -2383,7 +2437,7 @@
     {
       "id": "brief-card",
       "type": "rectangle",
-      "x": 1630,
+      "x": 1230,
       "y": 690,
       "width": 330,
       "height": 170,
@@ -2415,7 +2469,7 @@
     {
       "id": "persist-card",
       "type": "rectangle",
-      "x": 1230,
+      "x": 1630,
       "y": 700,
       "width": 330,
       "height": 150,
@@ -2623,7 +2677,7 @@
         "technical-total"
       ],
       "frameId": "frame-score",
-      "index": "a0140",
+      "index": "a0142",
       "roundness": {
         "type": 3
       },
@@ -2655,7 +2709,7 @@
         "skills-points"
       ],
       "frameId": "frame-score",
-      "index": "a0142",
+      "index": "a0144",
       "roundness": {
         "type": 3
       },
@@ -2687,7 +2741,7 @@
         "evidence-points"
       ],
       "frameId": "frame-score",
-      "index": "a0144",
+      "index": "a0146",
       "roundness": {
         "type": 3
       },
@@ -2719,7 +2773,7 @@
         "experience-points"
       ],
       "frameId": "frame-score",
-      "index": "a0146",
+      "index": "a0148",
       "roundness": {
         "type": 3
       },
@@ -2751,7 +2805,7 @@
         "nice-points"
       ],
       "frameId": "frame-score",
-      "index": "a0148",
+      "index": "a0150",
       "roundness": {
         "type": 3
       },
@@ -2783,7 +2837,7 @@
         "location-points"
       ],
       "frameId": "frame-score",
-      "index": "a0150",
+      "index": "a0152",
       "roundness": {
         "type": 3
       },
@@ -2815,7 +2869,7 @@
         "gate-card"
       ],
       "frameId": "frame-score",
-      "index": "a0152",
+      "index": "a0154",
       "roundness": {
         "type": 3
       },
@@ -2847,7 +2901,7 @@
         "guidance-score-card"
       ],
       "frameId": "frame-score",
-      "index": "a0155",
+      "index": "a0157",
       "roundness": {
         "type": 3
       },
@@ -2879,7 +2933,7 @@
         "ordering-card"
       ],
       "frameId": "frame-score",
-      "index": "a0158",
+      "index": "a0160",
       "roundness": {
         "type": 3
       },
@@ -2911,7 +2965,7 @@
         "confidence-card"
       ],
       "frameId": "frame-score",
-      "index": "a0161",
+      "index": "a0163",
       "roundness": {
         "type": 3
       },
@@ -3219,12 +3273,12 @@
       "locked": false,
       "fontSize": 16,
       "fontFamily": 1,
-      "text": "Validate HTTP input → call the match service → return one complete response",
-      "rawText": "Validate HTTP input → call the match service → return one complete response",
+      "text": "Validate HTTP input → prepare ranking → finalize or recover evidence",
+      "rawText": "Validate HTTP input → prepare ranking → finalize or recover evidence",
       "textAlign": "left",
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "Validate HTTP input → call the match service → return one complete response",
+      "originalText": "Validate HTTP input → prepare ranking → finalize or recover evidence",
       "autoResize": false,
       "lineHeight": 1.25
     },
@@ -3295,12 +3349,12 @@
       "locked": false,
       "fontSize": 15,
       "fontFamily": 1,
-      "text": "Orchestrates\ncache → retrieval\n→ score → persist",
-      "rawText": "Orchestrates\ncache → retrieval\n→ score → persist",
+      "text": "Orchestrates\npreflight → rank\n→ finalize",
+      "rawText": "Orchestrates\npreflight → rank\n→ finalize",
       "textAlign": "center",
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "Orchestrates\ncache → retrieval\n→ score → persist",
+      "originalText": "Orchestrates\npreflight → rank\n→ finalize",
       "autoResize": false,
       "lineHeight": 1.25
     },
@@ -3599,12 +3653,12 @@
       "locked": false,
       "fontSize": 14,
       "fontFamily": 1,
-      "text": "Atomic run/results\npersistence + brief",
-      "rawText": "Atomic run/results\npersistence + brief",
+      "text": "Atomic run states\nresults + recovery",
+      "rawText": "Atomic run states\nresults + recovery",
       "textAlign": "center",
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "Atomic run/results\npersistence + brief",
+      "originalText": "Atomic run states\nresults + recovery",
       "autoResize": false,
       "lineHeight": 1.25
     },
@@ -4093,12 +4147,12 @@
       "locked": false,
       "fontSize": 18,
       "fontFamily": 1,
-      "text": "POST /api/matches",
-      "rawText": "POST /api/matches",
+      "text": "prepare → finalize",
+      "rawText": "prepare → finalize",
       "textAlign": "center",
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "POST /api/matches",
+      "originalText": "prepare → finalize",
       "autoResize": false,
       "lineHeight": 1.25
     },
@@ -4979,7 +5033,7 @@
     {
       "id": "brief-card-title",
       "type": "text",
-      "x": 1646,
+      "x": 1246,
       "y": 704,
       "width": 298,
       "height": 25,
@@ -5005,19 +5059,19 @@
       "locked": false,
       "fontSize": 20,
       "fontFamily": 1,
-      "text": "OpenAI evidence briefs",
-      "rawText": "OpenAI evidence briefs",
+      "text": "Background evidence briefs",
+      "rawText": "Background evidence briefs",
       "textAlign": "center",
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "OpenAI evidence briefs",
+      "originalText": "Background evidence briefs",
       "autoResize": false,
       "lineHeight": 1.25
     },
     {
       "id": "brief-card-body",
       "type": "text",
-      "x": 1646,
+      "x": 1246,
       "y": 742,
       "width": 298,
       "height": 57,
@@ -5055,7 +5109,7 @@
     {
       "id": "persist-card-title",
       "type": "text",
-      "x": 1246,
+      "x": 1646,
       "y": 714,
       "width": 298,
       "height": 23,
@@ -5081,19 +5135,19 @@
       "locked": false,
       "fontSize": 18,
       "fontFamily": 1,
-      "text": "Atomic persistence",
-      "rawText": "Atomic persistence",
+      "text": "Persist run state",
+      "rawText": "Persist run state",
       "textAlign": "center",
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "Atomic persistence",
+      "originalText": "Persist run state",
       "autoResize": false,
       "lineHeight": 1.25
     },
     {
       "id": "persist-card-body",
       "type": "text",
-      "x": 1246,
+      "x": 1646,
       "y": 752,
       "width": 298,
       "height": 19,
@@ -5119,12 +5173,12 @@
       "locked": false,
       "fontSize": 15,
       "fontFamily": 1,
-      "text": "One SQL statement stores run + results",
-      "rawText": "One SQL statement stores run + results",
+      "text": "ranking_ready → explaining → complete",
+      "rawText": "ranking_ready → explaining → complete",
       "textAlign": "center",
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "One SQL statement stores run + results",
+      "originalText": "ranking_ready → explaining → complete",
       "autoResize": false,
       "lineHeight": 1.25
     },
@@ -5157,12 +5211,12 @@
       "locked": false,
       "fontSize": 18,
       "fontFamily": 1,
-      "text": "Complete API response",
-      "rawText": "Complete API response",
+      "text": "Ranking-ready response",
+      "rawText": "Ranking-ready response",
       "textAlign": "center",
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "Complete API response",
+      "originalText": "Ranking-ready response",
       "autoResize": false,
       "lineHeight": 1.25
     },
@@ -5195,12 +5249,12 @@
       "locked": false,
       "fontSize": 15,
       "fontFamily": 1,
-      "text": "Rank, score, evidence, gaps, questions",
-      "rawText": "Rank, score, evidence, gaps, questions",
+      "text": "Final rank + score appear immediately",
+      "rawText": "Final rank + score appear immediately",
       "textAlign": "center",
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "Rank, score, evidence, gaps, questions",
+      "originalText": "Final rank + score appear immediately",
       "autoResize": false,
       "lineHeight": 1.25
     },
@@ -5271,12 +5325,12 @@
       "locked": false,
       "fontSize": 15,
       "fontFamily": 1,
-      "text": "Inspect evidence; select candidates",
-      "rawText": "Inspect evidence; select candidates",
+      "text": "Review ranking while evidence finishes",
+      "rawText": "Review ranking while evidence finishes",
       "textAlign": "center",
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "Inspect evidence; select candidates",
+      "originalText": "Review ranking while evidence finishes",
       "autoResize": false,
       "lineHeight": 1.25
     },
@@ -5547,6 +5601,44 @@
       "lineHeight": 1.25
     },
     {
+      "id": "response-to-brief-label",
+      "type": "text",
+      "x": 1405,
+      "y": 905,
+      "width": 120,
+      "height": 19,
+      "angle": 0,
+      "strokeColor": "#7048e8",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-flow",
+      "index": "a0135",
+      "roundness": null,
+      "seed": 2597020522,
+      "version": 1,
+      "versionNonce": 3533199733,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1724000000000,
+      "link": null,
+      "locked": false,
+      "fontSize": 15,
+      "fontFamily": 1,
+      "text": "background",
+      "rawText": "background",
+      "textAlign": "center",
+      "verticalAlign": "top",
+      "containerId": null,
+      "originalText": "background",
+      "autoResize": false,
+      "lineHeight": 1.25
+    },
+    {
       "id": "score-title",
       "type": "text",
       "x": 80,
@@ -5563,7 +5655,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0138",
+      "index": "a0140",
       "roundness": null,
       "seed": 2618604204,
       "version": 1,
@@ -5601,7 +5693,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0139",
+      "index": "a0141",
       "roundness": null,
       "seed": 1156440900,
       "version": 1,
@@ -5639,7 +5731,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0141",
+      "index": "a0143",
       "roundness": null,
       "seed": 2006066199,
       "version": 1,
@@ -5677,7 +5769,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0143",
+      "index": "a0145",
       "roundness": null,
       "seed": 618552477,
       "version": 1,
@@ -5715,7 +5807,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0145",
+      "index": "a0147",
       "roundness": null,
       "seed": 3510227698,
       "version": 1,
@@ -5753,7 +5845,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0147",
+      "index": "a0149",
       "roundness": null,
       "seed": 2867358021,
       "version": 1,
@@ -5791,7 +5883,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0149",
+      "index": "a0151",
       "roundness": null,
       "seed": 832430968,
       "version": 1,
@@ -5829,7 +5921,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0151",
+      "index": "a0153",
       "roundness": null,
       "seed": 1759033168,
       "version": 1,
@@ -5867,7 +5959,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0153",
+      "index": "a0155",
       "roundness": null,
       "seed": 3851527020,
       "version": 1,
@@ -5905,7 +5997,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0154",
+      "index": "a0156",
       "roundness": null,
       "seed": 1370637838,
       "version": 1,
@@ -5943,7 +6035,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0156",
+      "index": "a0158",
       "roundness": null,
       "seed": 1561042522,
       "version": 1,
@@ -5981,7 +6073,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0157",
+      "index": "a0159",
       "roundness": null,
       "seed": 4206245216,
       "version": 1,
@@ -6019,7 +6111,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0159",
+      "index": "a0161",
       "roundness": null,
       "seed": 3876354883,
       "version": 1,
@@ -6057,7 +6149,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0160",
+      "index": "a0162",
       "roundness": null,
       "seed": 3726743383,
       "version": 1,
@@ -6095,7 +6187,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0162",
+      "index": "a0164",
       "roundness": null,
       "seed": 4192992525,
       "version": 1,
@@ -6133,7 +6225,7 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": "frame-score",
-      "index": "a0163",
+      "index": "a0165",
       "roundness": null,
       "seed": 4291146829,
       "version": 1,

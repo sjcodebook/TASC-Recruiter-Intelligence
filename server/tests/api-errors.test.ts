@@ -39,7 +39,7 @@ describe("API error responses", () => {
   it("rejects candidates that do not belong to the requested match run", async () => {
     const database = {
       query: vi.fn()
-        .mockResolvedValueOnce({ rows: [{ run_id: "run" }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ run_id: "run", status: "complete" }], rowCount: 1 })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
     };
     const repository = new MatchRepository(database as never);
@@ -49,5 +49,21 @@ describe("API error responses", () => {
       ["C999"]
     )).rejects.toMatchObject({ status: 422, code: "INVALID_CANDIDATE_SELECTION" });
     expect(database.query).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects approval until evidence generation is complete", async () => {
+    const database = {
+      query: vi.fn().mockResolvedValue({
+        rows: [{ run_id: "run", status: "explaining" }],
+        rowCount: 1
+      })
+    };
+    const repository = new MatchRepository(database as never);
+
+    await expect(repository.approveAndBuildMarkdown(
+      "11111111-1111-4111-8111-111111111111",
+      ["C001"]
+    )).rejects.toMatchObject({ status: 409, code: "MATCH_NOT_COMPLETE" });
+    expect(database.query).toHaveBeenCalledTimes(1);
   });
 });

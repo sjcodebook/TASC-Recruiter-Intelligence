@@ -56,6 +56,7 @@ The Dubai clause is a hard eligibility requirement. Immediate availability is a 
 
 ```json
 {
+  "status": "complete",
   "totalConsidered": 110,
   "duplicatesHidden": 10,
   "minimumExperienceYears": 2,
@@ -85,6 +86,8 @@ The Dubai clause is a hard eligibility requirement. Immediate availability is a 
   ]
 }
 ```
+
+On a cold run the same candidates first arrive with `status: ranking_ready`. The browser displays their final order and scores, then replaces only their narrative evidence fields when the run becomes `complete`.
 
 C117 remains the stronger technical match. C035 ranks first in this run because both candidates satisfy the required Dubai constraint, while C035's two-week notice is much closer to the explicit availability preference.
 

@@ -111,8 +111,12 @@ export type RankedCandidate = Candidate & {
   clarifyingQuestions: string[];
 };
 
+export type MatchStatus = "ranking_ready" | "explaining" | "complete" | "failed";
+
 export type MatchResponse = {
   runId: string;
+  status: MatchStatus;
+  explanationError: string | null;
   role: Role;
   guidance: Guidance;
   candidates: RankedCandidate[];

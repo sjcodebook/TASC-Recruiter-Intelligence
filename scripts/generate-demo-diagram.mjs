@@ -185,14 +185,14 @@ addCard("app-card", "frame-code", 475, 175, 590, 100, "server/src/app.ts",
     titleColor: palette.teal
   });
 addCard("controller-card", "frame-code", 475, 315, 590, 90, "controllers/match.controller.ts",
-  "Validate HTTP input → call the match service → return one complete response", {
+  "Validate HTTP input → prepare ranking → finalize or recover evidence", {
     backgroundColor: palette.grayFill,
     strokeColor: palette.ink,
     bodyTop: 50
   });
 
 addCard("match-service-card", "frame-code", 475, 450, 180, 160, "match.service.ts",
-  "Orchestrates\ncache → retrieval\n→ score → persist", {
+  "Orchestrates\npreflight → rank\n→ finalize", {
     backgroundColor: palette.tealFill,
     strokeColor: palette.teal,
     titleSize: 18,
@@ -224,7 +224,7 @@ addCard("candidate-repo-card", "frame-code", 475, 655, 180, 130, "candidate.repo
     align: "center"
   });
 addCard("match-repo-card", "frame-code", 680, 655, 180, 130, "match.repository",
-  "Atomic run/results\npersistence + brief", {
+  "Atomic run states\nresults + recovery", {
     backgroundColor: palette.grayFill,
     titleSize: 17,
     bodySize: 14,
@@ -275,7 +275,7 @@ addText("flow-subtitle", "frame-flow", 1220, 120, 2050,
 
 addPill("recruiter-pill", "frame-flow", 1230, 200, 210, 80, "Recruiter", palette.cream, palette.ink, 20);
 addPill("next-pill", "frame-flow", 1495, 200, 230, 80, "Next.js workspace", palette.blueFill, palette.blue, 18);
-addPill("post-pill", "frame-flow", 1780, 200, 230, 80, "POST /api/matches", palette.grayFill, palette.ink, 18);
+addPill("post-pill", "frame-flow", 1780, 200, 230, 80, "prepare → finalize", palette.grayFill, palette.ink, 18);
 addCard("load-role-card", "frame-flow", 2065, 180, 280, 120, "Load role + data version",
   "Parallel DB reads; validate role", {
     backgroundColor: palette.tealFill,
@@ -367,7 +367,7 @@ addCard("sort-card", "frame-flow", 2020, 700, 320, 150, "Sort + top 5",
     bodySize: 15,
     align: "center"
   });
-addCard("brief-card", "frame-flow", 1630, 690, 330, 170, "OpenAI evidence briefs",
+addCard("brief-card", "frame-flow", 1230, 690, 330, 170, "Background evidence briefs",
   "Explain final deterministic result\n1+ gaps · exactly 3 questions\nCannot rerank", {
     backgroundColor: palette.purpleFill,
     strokeColor: palette.purple,
@@ -375,8 +375,8 @@ addCard("brief-card", "frame-flow", 1630, 690, 330, 170, "OpenAI evidence briefs
     bodySize: 15,
     align: "center"
   });
-addCard("persist-card", "frame-flow", 1230, 700, 330, 150, "Atomic persistence",
-  "One SQL statement stores run + results", {
+addCard("persist-card", "frame-flow", 1630, 700, 330, 150, "Persist run state",
+  "ranking_ready → explaining → complete", {
     backgroundColor: palette.tealFill,
     strokeColor: palette.teal,
     titleColor: palette.teal,
@@ -385,8 +385,8 @@ addCard("persist-card", "frame-flow", 1230, 700, 330, 150, "Atomic persistence",
     align: "center"
   });
 
-addCard("response-card", "frame-flow", 1230, 990, 310, 135, "Complete API response",
-  "Rank, score, evidence, gaps, questions", {
+addCard("response-card", "frame-flow", 1230, 990, 310, 135, "Ranking-ready response",
+  "Final rank + score appear immediately", {
     backgroundColor: palette.blueFill,
     strokeColor: palette.blue,
     titleColor: palette.blue,
@@ -395,7 +395,7 @@ addCard("response-card", "frame-flow", 1230, 990, 310, 135, "Complete API respon
     align: "center"
   });
 addCard("review-card", "frame-flow", 1630, 990, 310, 135, "Human review",
-  "Inspect evidence; select candidates", {
+  "Review ranking while evidence finishes", {
     backgroundColor: palette.cream,
     strokeColor: palette.ink,
     titleSize: 18,
@@ -450,8 +450,15 @@ addArrow("dedupe-to-score", "frame-flow", 2940, 570, [[0, 0], [0, 130]], { strok
 addArrow("score-to-filter", "frame-flow", 2790, 775, [[0, 0], [-60, 0]], { strokeColor: palette.orange });
 addArrow("filter-to-sort", "frame-flow", 2400, 775, [[0, 0], [-60, 0]], { strokeColor: palette.orange });
 addArrow("sort-to-brief", "frame-flow", 2020, 775, [[0, 0], [-60, 0]], { strokeColor: palette.orange });
-addArrow("brief-to-persist", "frame-flow", 1630, 775, [[0, 0], [-70, 0]], { strokeColor: palette.purple });
-addArrow("persist-to-response", "frame-flow", 1395, 850, [[0, 0], [0, 140]], { strokeColor: palette.teal });
+addArrow("brief-to-persist", "frame-flow", 1560, 775, [[0, 0], [70, 0]], { strokeColor: palette.purple });
+addArrow("persist-to-response", "frame-flow", 1795, 850, [[0, 0], [0, 75], [-400, 0], [0, 65]], { strokeColor: palette.teal });
+addArrow("response-to-brief", "frame-flow", 1395, 990, [[0, 0], [0, -130]], {
+  strokeColor: palette.purple,
+  label: "background",
+  labelX: 1405,
+  labelY: 905,
+  labelWidth: 120
+});
 addArrow("response-to-review", "frame-flow", 1540, 1058, [[0, 0], [90, 0]], { strokeColor: palette.blue });
 addArrow("review-to-approval", "frame-flow", 1940, 1058, [[0, 0], [90, 0]], { strokeColor: palette.ink });
 addArrow("approval-to-markdown", "frame-flow", 2340, 1058, [[0, 0], [90, 0]], { strokeColor: palette.teal });

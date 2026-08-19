@@ -117,26 +117,31 @@ This prevents incomplete data from silently looking definitive without forcing e
 
 ## 7. Explanations and questions
 
-The final shortlist, ranks, scores, score breakdowns, confidence, and evidence are passed to OpenAI. The explanation prompt explicitly forbids reranking, ordinal claims, invented experience, and treating unscored facts as ranking drivers.
+The deterministic shortlist is persisted and returned with `status: ranking_ready` before explanation generation begins. The browser can therefore show the final candidate order and score composition while the evidence brief is still being written.
+
+The persisted shortlist, ranks, scores, score breakdowns, confidence, and evidence are then passed to OpenAI without recalculation. The explanation prompt explicitly forbids reranking, ordinal claims, invented experience, and treating unscored facts as ranking drivers. PostgreSQL JSONB key ordering is normalized before this call so the evidence payload retains the same score-breakdown shape as the original single-request implementation.
 
 Structured Outputs require one explanation, at least one gap, and exactly three questions per candidate. A sanitizer rejects leaked field names, malformed text, duplicates, or the wrong question count. Provider failures fail the operation instead of switching to different local behavior.
 
+Once the batch succeeds, only `whyFit`, `gaps`, and `clarifyingQuestions` are replaced and the run becomes `complete`. A failed explanation leaves the ranking intact and retryable. An atomic status claim prevents duplicate finalization calls from creating two OpenAI batches.
+
 ## 8. Approval
 
-No candidate is selected automatically after a match. The recruiter chooses candidates, the API verifies that every selected ID belongs to the persisted match run, and the approved IDs are recorded. The resulting Markdown contains scores, confidence, location, availability, reasoning, gaps, and interview questions in shortlist order.
+No candidate is selected automatically after a match. Selection and approval stay disabled until the run is `complete`. The recruiter then chooses candidates, the API verifies that the run is complete and every selected ID belongs to it, and the approved IDs are recorded. The resulting Markdown contains scores, confidence, location, availability, reasoning, gaps, and interview questions in shortlist order.
 
 ## 9. Latency without ranking changes
 
-The browser still makes one request and receives one complete match response. Performance work is limited to implementation details that preserve the same models, prompts, retrieval query, scoring, filtering, order, and explanation contract:
+Performance work preserves the same models, prompts, retrieval query, scoring, filtering, order, and explanation contract:
 
-- Exact completed searches use a 30-minute, 50-entry in-memory cache. The key includes all request fields, model and embedding configuration, the matching-engine version, and timestamps and counts from the current role and candidate data.
-- A cache hit receives a fresh run ID and is persisted as an independent run, so approvals never leak between searches.
-- Simultaneous identical requests share the same in-flight computation rather than making duplicate OpenAI calls.
-- Repeated recruiter guidance reuses the same completed structured interpretation before applying the requested overrides.
-- Stable prompt-cache keys help OpenAI reuse common prompt prefixes without changing prompt content.
-- The match run and all shortlisted result rows are inserted with one atomic SQL statement instead of one network round trip per candidate.
+1. `POST /api/matches/preflight` prepares the exact guidance and embedding after a short typing pause. It creates no match run and is reused only when the full input hash still matches.
+2. `POST /api/matches/prepare` performs pgvector retrieval, deduplication, deterministic scoring, filtering, sorting, and ranking persistence. It returns `ranking_ready` immediately.
+3. `POST /api/matches/:runId/finalize` runs the existing Structured Output explanation batch and changes the persisted run to `complete`.
+4. `GET /api/matches/:runId` restores a run after refresh and supports polling while another request owns finalization.
+5. The original `POST /api/matches` remains a compatibility endpoint that executes both phases and returns a complete response.
 
-The first unique search is still bounded mainly by OpenAI inference time. Repeated exact searches avoid those calls and are expected to complete much faster. Cache entries expire automatically and are invalidated when the role or candidate dataset changes.
+Exact completed searches use a 30-minute, 50-entry in-memory cache plus persisted Postgres reuse across server restarts. The key includes every request field, model and embedding configuration, matching-engine version, and the current role and candidate data version. Every replay receives a fresh run ID and independent approval state. In-flight preparation and ranking are also shared for identical input.
+
+The normal warmed click-to-ranking path is now dominated by Postgres retrieval, scoring, and persistence rather than explanation inference. Completely new guidance clicked immediately can still wait for OpenAI interpretation because moving that interpretation after ranking would change the result.
 
 ## Known limits
 

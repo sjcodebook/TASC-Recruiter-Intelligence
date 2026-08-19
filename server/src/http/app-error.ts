@@ -15,4 +15,8 @@ export class AppError extends Error {
   static unprocessable(message: string, code = "UNPROCESSABLE_REQUEST"): AppError {
     return new AppError(422, message, code);
   }
+
+  static conflict(message: string, code = "CONFLICT"): AppError {
+    return new AppError(409, message, code);
+  }
 }

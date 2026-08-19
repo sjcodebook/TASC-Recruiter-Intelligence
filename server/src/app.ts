@@ -27,6 +27,10 @@ export function createApp() {
   app.get("/api/meta", asyncHandler(metaController.read));
   app.get("/api/roles", asyncHandler(roleController.list));
   app.post("/api/matches", asyncHandler(matchController.create));
+  app.post("/api/matches/preflight", asyncHandler(matchController.preflight));
+  app.post("/api/matches/prepare", asyncHandler(matchController.prepare));
+  app.get("/api/matches/:runId", asyncHandler(matchController.read));
+  app.post("/api/matches/:runId/finalize", asyncHandler(matchController.finalize));
   app.post("/api/matches/:runId/approve", asyncHandler(matchController.approve));
 
   const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {
